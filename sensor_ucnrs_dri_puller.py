@@ -68,11 +68,12 @@ for station in stations:
     
     # Header vs No Header - check if path exists
     #path = '/data/sensor/UCNRS/DRI/'
-    path = '/Users/cbode/Desktop/DRI/'    
+    #path = '/Users/cbode/Desktop/DRI/'    
+    path = "S:\\DRI\\"
     fpath = path+station+'.dat'
     booFileExists = os.path.exists(fpath)
     if(booFileExists):
-        head = '01'  # no header
+        head = '03'  # no header
     else:
         head = '02'  # long header
         
@@ -90,8 +91,8 @@ for station in stations:
     'flag':'Y',                         
     'Dfmt':'06',                        
     'Tfmt':'01',                        
-    'Head':head,                        
-    'Deli':'01',                         
+    'Head':'02',                        
+    'Deli':'04',                         
     'unit':'M',
     'WsMon':'01',
     'WsDay':'01',
@@ -103,7 +104,7 @@ for station in stations:
     '.cgifields':'unit',
     '.cgifields':'flag',
     '.cgifields':'srce'} 
-    #print(post_data)
+    print(post_data)
     
     # POST request that is the heart of this script
     r = requests.post(website,post_data)
@@ -153,23 +154,30 @@ for station in stations:
     row4 = '"",'
     j = 0
     for row in received_data:
+        #print(row)
+        j += 1
         if(len(row) > 0):
             fields = row.split(",")
             firstchar = fields[0][0]
-            print(fields[0], 'first character: ',firstchar)
+            #print(j,') field(',fields[0], ') first char(',firstchar,')')
             if(firstchar == ':'): 
+                #print(row)
                 rowc = row.strip()        # remove all the white space
+                #print (rowc)
                 rowc = rowc[1:len(rowc)]  # remove colon(:) from field
+                #print (rowc)
                 row2 += ','+rowc+','+rowc+' flag'
+                #print (row2+"\n")
             elif(firstchar == '('): 
                 row4 += ','+row.strip()+',(flag text)'
             if(firstchar == '1' or  firstchar == '2'):
+                print('DATA FOUND BREAKING')
                 break
     # Print new header
-    print(row1)
-    print(row2)
-    print(row3)
-    print(row4)
+    print("row1 = "+row1)
+    print("row2 = "+row2)
+    print("row3 = "+row3)
+    print("row4 = "+row4)
     print("\n")
     
     # Write header
@@ -177,7 +185,7 @@ for station in stations:
     #fout.write(row2)
     #fout.write(row3)
     #fout.write(row4)
-    
+    '''
     for row in received_data:
         if(len(row) > 0):
             fields = row.split(",")
@@ -191,4 +199,4 @@ for station in stations:
     #fout.close()  
 
     #print(station+" downloaded and writen to file at "+path+station+'.dat')  
-    i +=1
+    '''

@@ -56,10 +56,10 @@ $eday = sprintf("%02d",$eday);
 #print "Start Date: ".$syear."-".$smonth."-".$sday."  End Date: ".$eyear."-".$emonth."-".$eday."\n";;
 
 # WRCC has codes for each UC weather station
-my @stations = ('ucac','ucab','hipk','whpt','ucbo',
-'ucbm','ucde','ucbu','ucca','ucel','ucha','ucja',
-'ucjp','ucmc','ucmo','ucrm','sagh','ucsc','ucse',
-'ucsh','ucsr','ucgr','croo','wmtn','barc','ucyl');
+my @stations = ('ucac','ucab','hipk','whpt','ucbo'); #,
+#'ucbm','ucde','ucbu','ucca','ucel','ucha','ucja',
+#'ucjp','ucmc','ucmo','ucrm','sagh','ucsc','ucse',
+#'ucsh','ucsr','ucgr','croo','wmtn','barc','ucyl');
 
 # Define all POST variables required to make WRCC's website form to work
 my $i = 1;
@@ -99,9 +99,10 @@ foreach my $station (@stations) {
 	# Heart of script. Send POST and get data back
 	my $response = $ua->post($website, @post_data);
 	my @content = $response->decoded_content();
-	my $filepath = '/data/sensor/UCNRS/DRI/'.$station.'.tab';
+	#my $filepath = '/data/sensor/UCNRS/DRI/'.$station.'.tab';
+	my $filepath = './DRI/'.$station.'.tab';
 	open(my $fout,'>>',$filepath) or die 'Could not open file';
-	#print @content;
+	print @content;
 	print $fout @content;
 	close $fout;
 	$i +=1;
