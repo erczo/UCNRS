@@ -68,8 +68,8 @@ for station in stations:
     
     # Header vs No Header - check if path exists
     #path = '/data/sensor/UCNRS/DRI/'
-    #path = '/Users/cbode/Desktop/DRI/'    
-    path = "S:\\DRI\\"
+    path = '/Users/cbode/Desktop/DRI/'    
+    #path = "S:\\DRI\\"
     fpath = path+station+'.dat'
     booFileExists = os.path.exists(fpath)
     if(booFileExists):
@@ -87,12 +87,12 @@ for station in stations:
     'secret':'',                        
     'dfor':'02',                        
     'srce':'W',                         
-    'miss':'02',                        
+    'miss':'08',                        
     'flag':'Y',                         
     'Dfmt':'06',                        
     'Tfmt':'01',                        
     'Head':'02',                        
-    'Deli':'04',                         
+    'Deli':'01',                         
     'unit':'M',
     'WsMon':'01',
     'WsDay':'01',
@@ -113,7 +113,7 @@ for station in stations:
     received_data = (r.text).split("\n")
 
     # Open file for writing        
-    #fout = open(fpath,'a')    
+    fout = open(fpath,'a')    
 
     # Build a new header, if not already built
     # HEADER:  Ginger wants the headers to be as similar to .dat files as possible.
@@ -149,27 +149,30 @@ for station in stations:
      (     )
     '''
     row1 = '"TOA5","'+station+'","DRI WRCC webscrape"\n'
-    row2 = 'TIMESTAMP,'
-    row3 = '"TS","RN","",""\n'
-    row4 = '"",'
+    row2 = '"TIMESTAMP","RECORD"'
+    row3 = '"TS","RN"'
+    row4 = '"",""'
     j = 0
     for row in received_data:
         #print(row)
         j += 1
         if(len(row) > 0):
-            fields = row.split(",")
+            fields = row.split("\r")
             firstchar = fields[0][0]
-            #print(j,') field(',fields[0], ') first char(',firstchar,')')
+            #print(j,'. fields: ',fields,"\n")
             if(firstchar == ':'): 
-                #print(row)
-                rowc = row.strip()        # remove all the white space
-                #print (rowc)
-                rowc = rowc[1:len(rowc)]  # remove colon(:) from field
-                #print (rowc)
-                row2 += ','+rowc+','+rowc+' flag'
-                #print (row2+"\n")
-            elif(firstchar == '('): 
-                row4 += ','+row.strip()+',(flag text)'
+                fieldname = fields[0].strip()
+                fieldname = fieldname[1:len(fieldname)]
+                fieldunits = fields[1].strip()
+                fieldunits = (fieldunits[1:len(fieldunits)-1]).strip()
+                #print(j,' fieldname:'+fieldname+', units: '+fieldunits+"\n")
+                if(fieldname == 'Day of Year' or fieldname == 'Time of Day'):
+                    # ignore these fields
+                    row2 = row2
+                else:                    
+                    row2 += ',"'+fieldname+'","'+fieldname+' flag"'
+                    row3 += ',"",""'
+                    row4 += ',"'+fieldunits+'","text"'
             if(firstchar == '1' or  firstchar == '2'):
                 print('DATA FOUND BREAKING')
                 break
@@ -181,22 +184,36 @@ for station in stations:
     print("\n")
     
     # Write header
-    #fout.write(row1)
-    #fout.write(row2)
-    #fout.write(row3)
-    #fout.write(row4)
-    '''
+    fout.write(row1+"\n")
+    fout.write(row2+"\n")
+    fout.write(row3+"\n")
+    fout.write(row4+"\n")
+
+    # Parse Data 
+    # restart use of received_data array (that seems automatic)
+    # Make sure first character is from year (19xx or 20xx)
+    # Merge date and time into TIMESTAMP 
+    print('____Data next____')
     for row in received_data:
         if(len(row) > 0):
             fields = row.split(",")
             firstchar = fields[0][0]
-            print(fields[0], 'first character: ',firstchar)
-            if(firstchar == ':' or firstchar == '1' or firstchar == '2'): 
-                #fout.write(row+"\n")
-                print()
+            #print(fields[0], 'first character: ',firstchar)
+            if(firstchar == '1' or firstchar == '2'):
+                date = fields.pop(0).strip()
+                time = fields.pop(0).strip()
+                ts = dt.datetime.strptime(date+' '+time,"%Y/%m/%d %H:%M")
+                timestamp = dt.datetime.strftime(ts,"%Y-%m-%d %H:%M:%S")
+                #print(date,' ',time,' --> ',timestamp)
+                newrow = '"'+timestamp+'",99'
+                #print(newrow)
+                for field in fields:
+                    newrow += ','+field.strip()
+                newrow += "\n"
+                print(newrow)
+                fout.write(newrow)
             else:
-                print('BAD HTML! ',row)
-    #fout.close()  
-
+                print('BAD HTML! ')
+    fout.close()  
+    print('Done with '+station)
     #print(station+" downloaded and writen to file at "+path+station+'.dat')  
-    '''
