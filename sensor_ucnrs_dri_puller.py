@@ -40,21 +40,14 @@
 ################################################################################
 
 import requests
-import os
 import datetime as dt
-import sys
 
 # First Run? Pull ALL data and make headers or just download yesterday (cron job)
-booFirstRun = True
+booFirstRun = False
 booDownloadData = False
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
-
-# Days to pull data
-time_end = dt.datetime.now()
-time_interval_days = dt.timedelta(days=1)
-time_start = time_end - time_interval_days
 
 # WRCC has codes for each UC weather station
 stations = ['ucac','ucab','hipk','whpt','ucbo',
@@ -66,8 +59,10 @@ stations = ['ucac','ucab','hipk','whpt','ucbo',
 if(booFirstRun == True):
     #time_start = dt.datetime.strptime('2000-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
     head = '02'   # long header
+    write_mode = 'w' # new file
 else:
     head = '03'  # no header
+    write_mode = 'a' # append to existing file
     
 
 for station in stations:
@@ -76,9 +71,31 @@ for station in stations:
     # Define path and station filename
     #path = '/data/sensor/UCNRS/DRI/'
     #path = '/Users/cbode/Desktop/DRI/'    
-    path = "S:\\DRI\\"
-    #fpath = path+station+'_dri.dat'
-    fpath = path+'headers_dri.csv'
+    path = "L:\\Google Drive\\UCNRS_WeatherStations\\DatFiles_DRI\\"
+    fpath = path+station+'_dri.dat'
+    #fpath = path+'headers_dri.csv'
+
+    # Days to pull data
+    time_end = dt.datetime.now()
+    # time_interval_days = dt.timedelta(days=1)
+    # time_start = time_end - time_interval_days    
+    if(booFirstRun == False):
+        # pull the last row in file
+        f = open(fpath,'r')
+        k = 0
+        for row in f:
+            #print(row)
+            k += 1
+        fields = row.split(',')
+        dtstring = fields[0]
+        if dtstring.startswith('"') and dtstring.endswith('"'):
+           dtstring = dtstring[1:-1]
+        if dtstring.startswith("'") and dtstring.endswith("'"):
+            dtstring = dtstring[1:-1]
+        print(station+' last date: '+dtstring)
+        time_start = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
+        f.close()
+    break
     
     # Define all POST variables required to make WRCC's website form to work
     post_data = {'stn':station,
@@ -117,7 +134,7 @@ for station in stations:
     received_data = (r.text).split("\n")
 
     # Open file for writing        
-    fout = open(fpath,'a')    
+    fout = open(fpath,write_mode)    
     
     ############################################################################
     # HEADER: Build a new header. Ginger wants as similar to .dat as possible.    
