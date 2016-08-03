@@ -57,7 +57,7 @@ stations = ['ucac','ucab','hipk','whpt','ucbo',
 
 # First Run Values
 if(booFirstRun == True):
-    #time_start = dt.datetime.strptime('2000-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
+    time_start = dt.datetime.strptime('2000-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
     head = '02'   # long header
     write_mode = 'w' # new file
 else:
@@ -66,12 +66,11 @@ else:
     
 
 for station in stations:
-    #print("Downloading "+station)
     
     # Define path and station filename
     #path = '/data/sensor/UCNRS/DRI/'
     #path = '/Users/cbode/Desktop/DRI/'    
-    path = "L:\\Google Drive\\UCNRS_WeatherStations\\DatFiles_DRI\\"
+    #path = "L:\\Google Drive\\UCNRS_WeatherStations\\DatFiles_DRI\\"
     fpath = path+station+'_dri.dat'
     #fpath = path+'headers_dri.csv'
 
@@ -181,7 +180,6 @@ for station in stations:
             if(len(row) > 0):
                 fields = row.split("\r")
                 firstchar = fields[0][0]
-                #print(j,'. fields: ',fields,"\n")
                 if(firstchar == ':'): 
                     fieldname = fields[0].strip()
                     fieldname = fieldname[1:len(fieldname)]
@@ -196,7 +194,7 @@ for station in stations:
                         row3 += ',"",""'
                         row4 += ',"'+fieldunits+'","text"'
                 if(firstchar == '1' or  firstchar == '2'):
-                    print('DATA FOUND BREAKING')
+                    #print('DATA FOUND BREAKING')
                     break
         # Print new header
         print("row1 = "+row1)
@@ -217,28 +215,25 @@ for station in stations:
     # Make sure first character is from year (19xx or 20xx)
     # Merge date and time into TIMESTAMP 
     if(booDownloadData == True):
-        print('____Data next____')
+        #print('____Data next____')
         for row in received_data:
             if(len(row) > 0):
                 fields = row.split(",")
                 firstchar = fields[0][0]
-                #print(fields[0], 'first character: ',firstchar)
                 if(firstchar == '1' or firstchar == '2'):
                     date = fields.pop(0).strip()
                     time = fields.pop(0).strip()
                     ts = dt.datetime.strptime(date+' '+time,"%Y/%m/%d %H:%M")
                     timestamp = dt.datetime.strftime(ts,"%Y-%m-%d %H:%M:%S")
-                    #print(date,' ',time,' --> ',timestamp)
                     newrow = '"'+timestamp+'",99'
-                    #print(newrow)
                     for field in fields:
                         newrow += ','+field.strip()
                     newrow += "\n"
-                    print(newrow)
                     fout.write(newrow)
-                else:
-                    print('BAD HTML! ')
+                    #print(newrow)
+                #else:
+                #    print('BAD HTML! ')
     # Finish up with station 
     fout.close()  
-    print(station+" downloaded and writen to file at "+path+station+'.dat')  
-print('All Done!')
+    #print(station+" downloaded and writen to file at "+path+station+'.dat')  
+#print('All Done!')
