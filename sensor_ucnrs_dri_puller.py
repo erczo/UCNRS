@@ -41,23 +41,24 @@
 
 import requests
 import datetime as dt
+import os
 
 # First Run? Pull ALL data and make headers or just download yesterday (cron job)
 booFirstRun = False
-booDownloadData = False
+booDownloadData = True
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # WRCC has codes for each UC weather station
-stations = ['ucac','ucab','hipk','whpt','ucbo',
+stations = ['ucac','hipk','whpt','ucbo',
 'ucbm','ucde','ucbu','ucca','ucel','ucha','ucja',
 'ucjp','ucmc','ucmo','ucrm','sagh','ucsc','ucse',
-'ucsh','ucsr','ucgr','croo','wmtn','barc','ucyl']
-
+'ucsh','ucsr','ucgr','ucyl']
+# ,'ucab','croo','wmtn','barc'
 # First Run Values
 if(booFirstRun == True):
-    time_start = dt.datetime.strptime('2000-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
+    time_start = dt.datetime.strptime('1990-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
     head = '02'   # long header
     write_mode = 'w' # new file
 else:
@@ -68,34 +69,31 @@ else:
 for station in stations:
     
     # Define path and station filename
-    #path = '/data/sensor/UCNRS/DRI/'
-    #path = '/Users/cbode/Desktop/DRI/'    
-    #path = "L:\\Google Drive\\UCNRS_WeatherStations\\DatFiles_DRI\\"
+    path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'   
+    #path = '/data/sensor/UCNRS/'
     fpath = path+station+'_dri.dat'
     #fpath = path+'headers_dri.csv'
-
+    
     # Days to pull data
     time_end = dt.datetime.now()
-    # time_interval_days = dt.timedelta(days=1)
-    # time_start = time_end - time_interval_days    
     if(booFirstRun == False):
-        # pull the last row in file
-        f = open(fpath,'r')
-        k = 0
-        for row in f:
-            #print(row)
-            k += 1
-        fields = row.split(',')
-        dtstring = fields[0]
-        if dtstring.startswith('"') and dtstring.endswith('"'):
-           dtstring = dtstring[1:-1]
-        if dtstring.startswith("'") and dtstring.endswith("'"):
-            dtstring = dtstring[1:-1]
-        print(station+' last date: '+dtstring)
-        time_start = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
-        f.close()
-    break
-    
+        try:
+            # pull the last row in file
+            ftpath = fpath+'.time'
+            ft = open(ftpath,'r')
+            dtstring = (ft.read()).strip()
+            print(station+' last date: '+dtstring)
+            time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
+            time_start = time_start_o - dt.timedelta(days=1)
+            ft.close()
+        except:
+            print(ftpath+" not found or doesn't have valid dates. Skipping...")
+            continue
+    exit
+    # Build a header if the file doesn't exist yet and FirstRun wasn't called.
+    if(os.path.exists(fpath) == False):
+        booFirstRun == True
+            
     # Define all POST variables required to make WRCC's website form to work
     post_data = {'stn':station,
     'smon':str(time_start.month).zfill(2),   
@@ -124,7 +122,7 @@ for station in stations:
     '.cgifields':'unit',
     '.cgifields':'flag',
     '.cgifields':'srce'} 
-    print(post_data)
+    #print(post_data)
     
     # POST request that is the heart of this script
     r = requests.post(website,post_data)
@@ -214,6 +212,7 @@ for station in stations:
     # restart use of received_data array (that seems automatic)
     # Make sure first character is from year (19xx or 20xx)
     # Merge date and time into TIMESTAMP 
+    timestamp = 'GEORGE'
     if(booDownloadData == True):
         #print('____Data next____')
         for row in received_data:
@@ -229,11 +228,18 @@ for station in stations:
                     for field in fields:
                         newrow += ','+field.strip()
                     newrow += "\n"
-                    fout.write(newrow)
+                    if(ts > time_start_o):
+                        fout.write(newrow)
+                    else:
+                        print(station+' redundant timestamp:',timestamp,' < ',time_start_o)
                     #print(newrow)
                 #else:
                 #    print('BAD HTML! ')
+        # Write last timestamp
+        ft = open(ftpath,'w')
+        ft.write(timestamp+"\n")
+        ft.close()
     # Finish up with station 
     fout.close()  
-    #print(station+" downloaded and writen to file at "+path+station+'.dat')  
-#print('All Done!')
+    print(station+" downloaded and writen to file")
+print('All Done!')
