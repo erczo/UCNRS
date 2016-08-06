@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/home/collin/pyv/bin/python
 ################################################################################
 # name: sensor_ucnrs_dri_puller.py
 # author: collin bode, email: collin@berkeley.edu
@@ -74,15 +74,23 @@ stations = ['ucac','ucbo','ucab','ucja',
 
 # stations that only can download 30 days or newer without password
 #stations = ['hipk','whpt','sagh','croo','wmtn','barc'] 
-    
+   
 # Loop through all the stations, webscrape, and parse
 for station in stations:
     print(station)    
+    
     # Define path and station filename
-    #path = '/data/sensor/UCNRS/'
-    path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'   
+    path = '/data/sensor/UCNRS/'
+    #path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'
+    ftdirpath = path+'/dri_time/'
+    
+    # Check for existance of the time files directory, if not create
+    if(os.path.exists(ftdirpath) == False):
+        os.makedirs(ftdirpath)
+
+    # Define file paths
     fpath = path+station+'_dri.dat'
-    ftpath = fpath+'.time'  # The .time file holds the last timestmap recorded
+    ftpath = ftdirpath+station+'_dri.dat.time'  # The .time file holds the last timestmap recorded
         
     # Build a header if the file doesn't exist yet and FirstRun wasn't called.
     if(os.path.exists(fpath) == False):
@@ -91,8 +99,10 @@ for station in stations:
     # TIME - get start datetime to pull data.  booFirstRun
     time_end = dt.datetime.now()
     if(booFirstRun == True):
-        #time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
-        time_start = dt.datetime.strptime('1990-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
+        if(station =='hipk' or station == 'whpt'):
+            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
+        else:
+            time_start = dt.datetime.strptime('1990-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
         time_start_o = time_start
         write_mode = 'w' # new file
         booWriteHeader = True
@@ -104,6 +114,7 @@ for station in stations:
             time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
             time_start = time_start_o - dt.timedelta(days=1) # add a day for safety
             ft.close()
+            write_mode = 'a' # append to existing file
         except:
             print(ftpath+" not found or doesn't have valid dates. Skipping...")
             continue
@@ -156,7 +167,7 @@ for station in stations:
     ############################################################################
     # HEADER: Build a new header. Ginger wants as similar to .dat as possible.    
     if(booWriteHeader == True):
-        row1 = '"TOA5","'+station+'","DRI WRCC webscrape"\n'
+        row1 = '"TOA5","'+station+'","DRI WRCC webscrape"'
         row2 = '"TIMESTAMP","RECORD"'
         row3 = '"TS","RN"'
         row4 = '"",""'
