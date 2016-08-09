@@ -53,14 +53,14 @@ import datetime as dt
 import os
 
 # Boolean controls for script. Cron job mode is false, false, true.
-booFirstRun = True      # True = Download all data available from 1990 until now
+booFirstRun = False     # True = Download all data available from 1990 until now
                         #        DRI controlled sites only can download 30 days, 
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
-booWriteHeader = True   # True = Get Long Header parse into LoggerNet header.
+booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
-booDownloadData = True  # True(default). False will only download headers.
+booDownloadData = False  # True(default). False will only download headers.
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
@@ -77,12 +77,12 @@ stations = ['ucac','ucbo','ucab','ucja',
    
 # Loop through all the stations, webscrape, and parse
 for station in stations:
-    print(station)    
+    #print(station)    
     
     # Define path and station filename
     path = '/data/sensor/UCNRS/'
     #path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'
-    ftdirpath = path+'/dri_time/'
+    ftdirpath = path+'dri_time/'
     
     # Check for existance of the time files directory, if not create
     if(os.path.exists(ftdirpath) == False):
@@ -110,7 +110,7 @@ for station in stations:
         try:
             ft = open(ftpath,'r')   # open .time file and get last datetime pulled
             dtstring = (ft.read()).strip()
-            print(station+' last date: '+dtstring)
+            #print(station+' last date: '+dtstring)
             time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
             time_start = time_start_o - dt.timedelta(days=1) # add a day for safety
             ft.close()
@@ -172,6 +172,7 @@ for station in stations:
         row3 = '"TS","RN"'
         row4 = '"",""'
         j = 0
+        t = 0   # how many duplicates of Min TC 10m are there?
         booWriteHeader = False
         for row in received_data:
             #print(row)
@@ -183,7 +184,9 @@ for station in stations:
                     booWriteHeader = True
                     # DRI long headers are sentence descriptions
                     # This segment shortens them to field names with no unusual characters
-                    fieldname = fields[0].strip()
+                    fieldname = fields[0][1:-1]                    
+                    fieldname = fieldname.replace(':','')                    
+                    fieldname = fieldname.strip()
                     fieldname = fieldname.replace('"','')
                     fieldname = fieldname.replace(' ','_')
                     fieldname = fieldname.replace('_in.','_Inches')
@@ -200,11 +203,21 @@ for station in stations:
                     fieldname = fieldname.replace('Minimum','Min')
                     fieldname = fieldname.replace('Temperature','Temp')
                     fieldname = fieldname.replace('temperature','Temp')
-                    fieldname = fieldname.replace('Average','Ave')
+                    fieldname = fieldname.replace('Ave_','Avg_')
+                    fieldname = fieldname.replace('Average','Avg')
                     fieldname = fieldname.replace('Miscellaneous','Misc')
                     fieldname = fieldname.replace('Identification','ID')
                     fieldname = fieldname.replace('Standard_Deviation','Std Dev')
                     fieldname = fieldname.replace('Standard_Deveation','Std Dev')
+                    fieldname = fieldname.replace('_mag/arcsec2','_mag')
+                    fieldname = fieldname.replace('/','')
+                    fieldname = fieldname.replace('\\','')
+                    
+                    # Fix Thermocouple duplicate 
+                    if(fieldname == 'Min_Temp_Thermocouple_10_m'):
+                        t += 1
+                    if(t == 2):
+                        fieldname = fieldname.replace('Min','Avg')
                     # Field units are inserted for posterity, but not used by loader
                     fieldunits = fields[1].strip()
                     fieldunits = (fieldunits[1:len(fieldunits)-1]).strip()
@@ -240,7 +253,7 @@ for station in stations:
     # Merge date and time into TIMESTAMP 
     timestamp = 'GEORGE'
     if(booDownloadData == True):
-        print('____Data next____')
+        #print('____Data next____')
         for row in received_data:
             if(len(row) > 0):
                 fields = row.split(",")
@@ -257,7 +270,8 @@ for station in stations:
                     if(ts > time_start_o):
                         fout.write(newrow)
                     else:
-                        print(station+' redundant timestamp:',timestamp,' < ',time_start_o)
+                        pass
+                        #print(station+' redundant timestamp:',timestamp,' < ',time_start_o)
                     #print(newrow)
                 #else:
                 #    print('BAD HTML! ')
@@ -266,7 +280,7 @@ for station in stations:
             ft = open(ftpath,'w')
             ft.write(timestamp+"\n")
             ft.close()
-            print(station+" downloaded and writen to file")
+            #print(station+" downloaded and writen to file")
         else:
             print('WARNING! '+station+' did not have any values to download.')
     # Finish up with station 
