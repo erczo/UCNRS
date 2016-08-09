@@ -66,46 +66,83 @@ booDownloadData = False  # True(default). False will only download headers.
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # WRCC has codes for each UC weather station
-stations = ['ucac','ucbo','ucab','ucja',
-'ucbm','ucde','ucbu','ucca','ucel','ucha',
-'ucjp','ucmc','ucmo','ucrm','ucsc','ucse',
-'ucsh','ucsr','ucgr','ucyl','hipk','whpt',
-'sagh','croo','wmtn','barc']
+stations = {'Hastings':'ucha',
+'Blue Oak Ranch':'ucbo',
+'Angelo':'ucac',
+'Bodega':'ucbm',
+'Deep Canyon':'ucde',
+'Burns':'ucbu',
+'Chickering':'ucca',
+'Elliott':'ucel',
+'James':'ucja',
+'Jepson':'ucjp',
+'Rancho Marino':'ucrm',
+'BigCreek Whale':'whpt',
+'BigCreek Highlands':'hipk',
+'BigCreek Gatehouse':'ucbc',
+'McLaughlin':'ucmc',
+'Motte':'ucmo',
+'Santa Cruz Island':'ucsc',
+'Sedgwick':'ucse',
+'SNARL':'ucsh',
+'Anza Borrego':'ucab',
+'Stunt Ranch':'ucsr',
+'Granites':'ucgr',
+'WhiteMt Summit':'wmtn',
+'WhiteMt Barcroft':'barc',
+'WhiteMt Crooked':'croo',
+'Younger':'ucyl',
+'Sagehen Creek':'sagh '}
 
 # stations that only can download 30 days or newer without password
 #stations = ['hipk','whpt','sagh','croo','wmtn','barc'] 
+
    
 # Loop through all the stations, webscrape, and parse
-for station in stations:
+for station_name,station in stations.items():
     #print(station)    
     
     # Define path and station filename
     path = '/data/sensor/UCNRS/'
     #path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'
-    ftdirpath = path+'dri_time/'
     
-    # Check for existance of the time files directory, if not create
-    if(os.path.exists(ftdirpath) == False):
-        os.makedirs(ftdirpath)
+    # Check for existance of the helper files directories, if not create
+    if(os.path.exists(path+'dri_time/') == False):
+        os.makedirs(path+'dri_time/')
+    if(os.path.exists(path+'dri_headers/') == False):
+        os.makedirs(path+'dri_headers/')
 
     # Define file paths
     fpath = path+station+'_dri.dat'
-    ftpath = ftdirpath+station+'_dri.dat.time'  # The .time file holds the last timestmap recorded
-        
+    ftpath = path+'dri_time/'+station+'_dri.dat.time'         # The .time file holds the last timestmap recorded
+    fheadpath = path+'dri_headers/'+station+'_dri.dat.header' # The .header file just holds the header 
+    write_mode = 'a' # append to existing file
+    
     # Build a header if the file doesn't exist yet and FirstRun wasn't called.
     if(os.path.exists(fpath) == False):
         booFirstRun == True
 
-    # TIME - get start datetime to pull data.  booFirstRun
-    time_end = dt.datetime.now()
+    #### TIME 
+    # booFirstRun set up file header and download all data
     if(booFirstRun == True):
         if(station =='hipk' or station == 'whpt'):
             time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
         else:
             time_start = dt.datetime.strptime('1990-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
         time_start_o = time_start
+        time_end = dt.datetime.now()
         write_mode = 'w' # new file
         booWriteHeader = True
+    # booWriteHeader & booDownloadData False: Use to only write headers to separate file
+    elif(booWriteHeader == True and booDownloadData == False):
+        if(station =='hipk' or station == 'whpt'):
+            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
+            time_end = dt.datetime.now() - dt.timedelta(days=27)
+        else:
+            time_start = dt.datetime.strptime('2015-09-20 01:00:00',"%Y-%m-%d %H:%M:%S")
+            time_end = dt.datetime.strptime('2015-09-22 01:00:00',"%Y-%m-%d %H:%M:%S")
+        time_start_o = time_start
+    # Normal operation - daily download
     else: #booFirstRun == False
         try:
             ft = open(ftpath,'r')   # open .time file and get last datetime pulled
@@ -113,8 +150,8 @@ for station in stations:
             #print(station+' last date: '+dtstring)
             time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
             time_start = time_start_o - dt.timedelta(days=1) # add a day for safety
+            time_end = dt.datetime.now()
             ft.close()
-            write_mode = 'a' # append to existing file
         except:
             print(ftpath+" not found or doesn't have valid dates. Skipping...")
             continue
@@ -167,13 +204,13 @@ for station in stations:
     ############################################################################
     # HEADER: Build a new header. Ginger wants as similar to .dat as possible.    
     if(booWriteHeader == True):
-        row1 = '"TOA5","'+station+'","DRI WRCC webscrape"'
+        row1 = '"TOA5","'+station_name+'","'+station+'","DRI WRCC webscrape"'
         row2 = '"TIMESTAMP","RECORD"'
         row3 = '"TS","RN"'
         row4 = '"",""'
         j = 0
         t = 0   # how many duplicates of Min TC 10m are there?
-        booWriteHeader = False
+        booWriteHeaderlocal = False
         for row in received_data:
             #print(row)
             j += 1
@@ -181,13 +218,13 @@ for station in stations:
                 fields = row.split("\r")
                 firstchar = fields[0][0]
                 if(firstchar == ':'): 
-                    booWriteHeader = True
+                    booWriteHeaderlocal = True
+                    fieldname = fields[0]
                     # DRI long headers are sentence descriptions
                     # This segment shortens them to field names with no unusual characters
-                    fieldname = fields[0][1:-1]                    
+                    fieldname = fieldname.replace('"','')                                      
                     fieldname = fieldname.replace(':','')                    
                     fieldname = fieldname.strip()
-                    fieldname = fieldname.replace('"','')
                     fieldname = fieldname.replace(' ','_')
                     fieldname = fieldname.replace('_in.','_Inches')
                     fieldname = fieldname.replace('.','')
@@ -214,7 +251,7 @@ for station in stations:
                     fieldname = fieldname.replace('\\','')
                     
                     # Fix Thermocouple duplicate 
-                    if(fieldname == 'Min_Temp_Thermocouple_10_m'):
+                    if('Min_Temp_Thermocouple_10' in fieldname):
                         t += 1
                     if(t == 2):
                         fieldname = fieldname.replace('Min','Avg')
@@ -230,8 +267,9 @@ for station in stations:
                         row3 += ',"",""'
                         row4 += ',"'+fieldunits+'","text"'
                 if(firstchar == '1' or  firstchar == '2'):
-                    #print('DATA FOUND BREAKING')
+                    #print(station,'DATA FOUND BREAKING',fields[0][0:10])
                     break
+                
         # Print new header
         print("row1 = "+row1)
         print("row2 = "+row2)
@@ -240,12 +278,19 @@ for station in stations:
         print("\n")
         
         # Write header
-        if(booWriteHeader == True):
+        if(booWriteHeaderlocal == True):
             fout.write(row1+"\n")
             fout.write(row2+"\n")
             fout.write(row3+"\n")
             fout.write(row4+"\n")
-        
+            fheadout = open(fheadpath,'w')        
+            fheadout.write(row1+"\n")
+            fheadout.write(row2+"\n")
+            fheadout.write(row3+"\n")
+            fheadout.write(row4+"\n")
+            fheadout.close()
+        else:
+            print(station+' has no data for time-period. cannot download header.')
             
     ############################################################################
     # Parse Data 
