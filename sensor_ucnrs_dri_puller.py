@@ -58,9 +58,9 @@ booFirstRun = False     # True = Download all data available from 1990 until now
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
-booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
+booWriteHeader = False  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
-booDownloadData = False  # True(default). False will only download headers.
+booDownloadData = True  # True(default). False will only download headers.
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
@@ -92,7 +92,7 @@ stations = {'Hastings':'ucha',
 'WhiteMt Barcroft':'barc',
 'WhiteMt Crooked':'croo',
 'Younger':'ucyl',
-'Sagehen Creek':'sagh '}
+'Sagehen Creek':'sagh'}
 
 # stations that only can download 30 days or newer without password
 #stations = ['hipk','whpt','sagh','croo','wmtn','barc'] 
@@ -100,22 +100,25 @@ stations = {'Hastings':'ucha',
    
 # Loop through all the stations, webscrape, and parse
 for station_name,station in stations.items():
-    #print(station)    
+    #print(station_name,station)    
     
     # Define path and station filename
     path = '/data/sensor/UCNRS/'
     #path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'
+    timepath = path+'dri_time/'
+    headpath = path+'dri_headers/'
     
     # Check for existance of the helper files directories, if not create
-    if(os.path.exists(path+'dri_time/') == False):
-        os.makedirs(path+'dri_time/')
-    if(os.path.exists(path+'dri_headers/') == False):
-        os.makedirs(path+'dri_headers/')
+    if(os.path.exists(timepath) == False):  
+        os.makedirs(timepath)
+    if(os.path.exists(headpath) == False):
+        os.makedirs(headpath)
 
     # Define file paths
-    fpath = path+station+'_dri.dat'
-    ftpath = path+'dri_time/'+station+'_dri.dat.time'         # The .time file holds the last timestmap recorded
-    fheadpath = path+'dri_headers/'+station+'_dri.dat.header' # The .header file just holds the header 
+    fstation = station+'_'+station_name.replace(' ','_').lower()+'_dri.dat'
+    fpath = path+fstation
+    ftpath = timepath+fstation+'.time'         # The .time file holds the last timestmap recorded
+    fheadpath = headpath+fstation+'.header' # The .header file just holds the header 
     write_mode = 'a' # append to existing file
     
     # Build a header if the file doesn't exist yet and FirstRun wasn't called.
