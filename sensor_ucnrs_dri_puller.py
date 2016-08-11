@@ -58,9 +58,9 @@ booFirstRun = False     # True = Download all data available from 1990 until now
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
-booWriteHeader = False  # True = Get Long Header parse into LoggerNet header.
+booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
-booDownloadData = True  # True(default). False will only download headers.
+booDownloadData = False  # True(default). False will only download headers.
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
@@ -223,6 +223,7 @@ for station_name,station in stations.items():
                 if(firstchar == ':'): 
                     booWriteHeaderlocal = True
                     fieldname = fields[0]
+
                     # DRI long headers are sentence descriptions
                     # This segment shortens them to field names with no unusual characters
                     fieldname = fieldname.replace('"','')                                      
@@ -256,8 +257,9 @@ for station_name,station in stations.items():
                     # Fix Thermocouple duplicate 
                     if('Min_Temp_Thermocouple_10' in fieldname):
                         t += 1
-                    if(t == 2):
-                        fieldname = fieldname.replace('Min','Avg')
+                        if(t == 2):
+                            fieldname = fieldname.replace('Min','Avg')
+
                     # Field units are inserted for posterity, but not used by loader
                     fieldunits = fields[1].strip()
                     fieldunits = (fieldunits[1:len(fieldunits)-1]).strip()
@@ -269,24 +271,30 @@ for station_name,station in stations.items():
                         row2 += ',"'+fieldname+'","'+fieldname+'_flag"'
                         row3 += ',"",""'
                         row4 += ',"'+fieldunits+'","text"'
+                # Stop when you reach data
                 if(firstchar == '1' or  firstchar == '2'):
                     #print(station,'DATA FOUND BREAKING',fields[0][0:10])
                     break
-                
+        '''        
         # Print new header
         print("row1 = "+row1)
         print("row2 = "+row2)
         print("row3 = "+row3)
         print("row4 = "+row4)
         print("\n")
-        
+        '''
         # Write header
         if(booWriteHeaderlocal == True):
-            fout.write(row1+"\n")
-            fout.write(row2+"\n")
-            fout.write(row3+"\n")
-            fout.write(row4+"\n")
-            fheadout = open(fheadpath,'w')        
+            # header to empty .dat
+            if(booFirstRun == True):
+                print(station_name,'writing header to .dat file')
+                fout.write(row1+"\n")
+                fout.write(row2+"\n")
+                fout.write(row3+"\n")
+                fout.write(row4+"\n")
+            # header to header file
+            print(station_name,'writing header to header file')
+            fheadout = open(fheadpath,'w')
             fheadout.write(row1+"\n")
             fheadout.write(row2+"\n")
             fheadout.write(row3+"\n")
