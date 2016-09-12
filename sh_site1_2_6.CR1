@@ -1,0 +1,446 @@
+'CR1000
+'----------->  Sagehen Site 1 100 ft tower program  <-----------------------
+'
+'  Version 2.0  7-7-2009
+'  by Brad Lyles & Greg McCurdy - Desert Research Institute
+'  changed table collection interval from 60 minutes to 10 min
+'  table hourly no longer used, table 10min now used
+'  added Geonor gage, 
+'  installed SDM-INT8  to measure wind speed sensors, to free up pulse ports for Geonor
+'
+'  Ver 2.1 7-31-09
+'  added code to convert Stevens Hydra Probe readings to engineering units
+'  
+'  Ver 2.2 Modified bt Brad Lyles 8-28-09
+'  removed Steven raw mV reading from table TenMin
+'  added offset values for snow pillow and Judd snow depth
+'  added table Raw with raw snow pillow mV
+'
+'  Ver 2.4 modified by Brad Lyles and Greg McCurdy
+'  changed if time instructions for sensors measured every minute to be 
+' measured at 10 seconds into the minute so as not to produce delays/scan over runs
+' these over runs were causing the SDMINT8 to measure errors every minute.
+'
+'  Ver 2.5 modified by Brad Lyles 11-22-10
+'  changed Judd depth from cm to inches, now using neg mult and pos offset
+'
+'  Ver 2.6 modified by Brad Lyles 11-13-2013
+'  added code to measure SWE sensor on Diff 2, 10-min data to table raw
+'
+'-Wiring for CR1000-
+'
+'  05103 Wind Speed & Direction Sensor (1)
+'    1H:  Green
+'    Ground:  Black
+'    Ground:  Clear
+'    Ground:  White
+'    EX1:  Blue
+'    CH1 (SDM-INT8):  Red
+'
+'  05103 Wind Speed & Direction Sensor (2)
+'    1L:  Green
+'    Ground:  Black
+'    Ground:  Clear
+'    Ground:  White
+'    EX1:  Blue
+'    CH2 (SDM-INT8):  Red
+'
+'  HMP45C (6-wire, panel switched power) (1)
+'    MUX #1 ch1:  Yellow
+'    MUX #1 ch2:  Blue
+'    Ground:  White
+'    Ground:  Black
+'    Ground:  Clear
+'    12V:  Red
+'
+'  HMP45C (6-wire, panel switched power) (2)
+'    MUX #1 ch3:  Yellow
+'    MUX #1 ch4:  Blue
+'    Ground:  White
+'    Ground:  Black
+'    Ground:  Clear
+'    12V:  Red
+'
+'  HMP35C 
+'    MUX #1 ch5:      Orange 
+'    MUX #1 ch6:      Green
+'    EX2:     Black, Yellow
+'    12V:     Red
+'    G:       Clear
+'    AG:      White, Purple
+'    
+'  CS105 Barometric Pressure Sensor
+'    4H:  Blue (Brown)
+'    Ground:  Yellow (White)
+'    Ground:  Clear
+'    G:  Black
+'    12V:  Red
+'    C4:  Green
+'
+'  LI200X Pyranometer
+'    Ground:  White
+'    Ground:  Clear
+'    5H:  Red
+'    5L:  Black
+'
+'  Snow Pillow Druck transducer
+'    Ground:
+'    SW-12 : Red = Red
+'    4L    : Yellow = White
+'    G     : Blue = Black
+'
+'  AM16/32 #2  soil moisture sensors
+' CR1000   : mux     : sensor
+'    C5    : RES
+'    C6    : CLK
+'    12V   : 12V
+'    G     : G
+'    7H    : odd Hi
+'    7L    : odd Lo
+'    Ex2   : even Hi
+'    Ground: even Lo
+'
+'  AM16/32 #1  
+' CR1000   : mux     : sensor
+'    C8    : RES
+'    C6    : CLK
+'    12V   : 12V
+'    G     : G
+'    3H    : odd Hi
+'    3L    : odd Lo
+'    Ex2   : even Hi
+'    Ground: even Lo
+'
+'  JUDD snow depth sensors
+'    8H    : White
+'    8L    : Brown
+'    C7    : Green
+'    G     : Black/Clear
+'    12V   : Red
+'
+'  SDM-INT8
+'    C1    : C1
+'    C2    : C2
+'    C3    : C3
+'   12V    : 12V
+'    G     : G
+'
+'  SWE sensor
+'   2H: green
+'   2L: white
+' GND - sensor excite (-)
+' VX3 - sensor excite (+)
+
+SequentialMode 
+Public SWE_mV(3), SWE_cm(3), SWE_mult(3),  SWE_intercept(3)
+Const num_SWE=1
+'Declare Variables and Units
+Public Batt_Volt, PanelT
+'Public WS_ms_25ft
+Public WindDir_25ft
+'Public WS_ms_100ft
+Public WindDir_100ft
+Public AirTC_25ft
+Public RH_25ft
+Public AirTC_100ft
+Public RH_100ft
+Public BP_mbar
+Public SlrkW
+Public SlrMJ
+Public SnowPillow_mv, SnowPillow_in, A0, A1, SP_offset
+Public JUDD_AT
+Public JUDD_Depth, Judd_offset
+Public Flag(8) As Boolean
+Public Sap_mV(5)
+Public Air_T_C,RH
+Public Geonor_Hz
+Public Geo_F_F0,Geo_PCPN,Geo_inch,int8(8)
+alias int8(1) = WS_ms_25ft
+Alias int8(2) = WS_ms_100ft
+
+Public V(4), HydraP(11),Vraw(3,4)
+Public SoilType(3),eR(3),eI(3),Temp_C(3),eR_tc(3),eI_tc(3)
+Public wfv(3),NaCI(3),SoilCond(3),SoilCond_tc(3),SoilWaCond_tc(3)
+
+ 
+
+Dim i
+
+Units Batt_Volt=Volts
+Units WS_ms_25ft=meters/second
+Units WindDir_25ft=Degrees
+Units WS_ms_100ft=meters/second
+Units WindDir_100ft=Degrees
+Units AirTC_25ft=Deg C
+Units RH_25ft=%
+Units AirTC_100ft=Deg C
+Units RH_100ft=%
+Units BP_mbar=mbar
+Units SlrkW=kW/m²
+Units SlrMJ=MJ/m²
+Units SnowPillow_mv=mV
+Units SnowPillow_in=H2O inches
+Units JUDD_AT=Deg C
+Units JUDD_Depth=in
+Units Temp_C=Deg C
+'Units SoilCond_tc()=S/m
+Units SoilCond=S/m
+Units SoilWaCond_tc=S/m
+Units SoilCond_tc=S/m
+Units wfv=pct by vol
+Units NaCI=gm NaCl / L
+
+
+Public rTime(9)	'declare as public and dimension rTime to 9
+
+Alias rTime(1) = Year	'assign the alias Year to rTime(1)
+Alias rTime(2) = Month	'assign the alias Month to rTime(2)
+Alias rTime(3) = Date	'assign the alias Day to rTime(3)
+Alias rTime(4) = Hour	'assign the alias Hour to rTime(4)
+Alias rTime(5) = Minute	'assign the alias Minute to rTime(5)
+Alias rTime(6) = Second	'assign the alias Second to rTime(6)
+Alias rTime(7) = uSecond	'assign the alias uSecond to rTime(7)
+
+Alias rTime(8) = WeekDay	'assign the alias WeekDay to rTime(8)
+Alias rTime(9) = Day_of_Year	'assign the alias Day_of_Year to rTime(9)
+
+'Define Data Tables
+DataTable(TenMin,True,-1)
+	DataInterval(0,10,Min,10)
+	CardOut (0,-1)
+  Sample (1,Day_of_Year,FP2)
+  Sample (1,Hour,FP2)
+	WindVector (1,WS_ms_25ft,WindDir_25ft,FP2,False,0,0,2)
+	FieldNames("WS_ms_25ft,res_WS_ms_25ft,WindDir_25ft,SD_WindDir_25ft")
+	Maximum (1,WS_ms_25ft,FP2,False,False)
+	Average(1,AirTC_25ft,FP2,False)
+	Sample(1,RH_25ft,FP2)
+	Average(1,SnowPillow_in,IEEE4,False)
+	Average(1,Batt_Volt,FP2,False)
+	Maximum (1,Batt_Volt,FP2,False,False)
+	Minimum (1,Batt_Volt,FP2,False,False)
+	Average(1,BP_mbar,IEEE4,False)
+	Average(1,SlrkW,FP2,False)
+	Totalize(1,SlrMJ,FP2,False)
+	ETsz(AirTC_25ft,RH_25ft,WS_ms_25ft,SlrMJ,120.0,39,2100,7.6,0,FP2,False)
+	FieldNames("ETos,Rso")	
+	WindVector (1,WS_ms_100ft,WindDir_100ft,FP2,False,0,0,2)
+	FieldNames("WS_ms_100ft,res_WS_ms_100ft,WindDir_100ft,SD_WindDir_100ft")
+	Maximum (1,WS_ms_100ft,FP2,False,False)
+	Average(1,AirTC_100ft,FP2,False)
+	Sample(1,RH_100ft,FP2)
+	Average(1,JUDD_AT,FP2,False)
+	Average(1,JUDD_Depth,FP2,False)
+	Maximum (1,Air_T_C,FP2,False,False)
+	Minimum (1,Air_T_C,FP2,False,False)
+	Average (1,Air_T_C,FP2,False)
+	Maximum (1,RH,FP2,False,False)
+	Minimum (1,RH,FP2,False,False)
+	Average (1,RH,FP2,False)
+	Sample (1,Geonor_Hz,IEEE4)
+	StdDev (1,Geonor_Hz,FP2,False)
+	Sample (1,Geo_PCPN,FP2)
+  Sample (1,Geo_inch,FP2)
+	Average (1,PanelT,FP2,False)
+	Average (3,Temp_C(),FP2,False)
+	Average (3,SoilCond_tc(),FP2,False)
+	Average (3,wfv(),FP2,False)
+	
+EndTable
+
+DataTable(Raw,True,-1)
+	DataInterval(0,10,Min,10)
+	CardOut (0,-1)
+	Average (1,SnowPillow_mv,FP2,False)
+	Average (1,SnowPillow_in,FP2,False)
+	Average (num_SWE,SWE_cm(),IEEE4,false)
+  Minimum (num_SWE,SWE_cm(),IEEE4,false,False)
+  Maximum (num_SWE,SWE_cm(),IEEE4,false,False)
+  Average (num_SWE,SWE_mV(),IEEE4,false)
+  Sample (1,Geo_inch,FP2)
+EndTable
+
+DataTable(Hydra,True,-1)
+	DataInterval(0,10,Min,10)
+	CardOut (0,-1)
+	Average (12,Vraw(),FP2,False)
+	Average (3,SoilType(),FP2,False)
+	Average (3,eR(),FP2,False)
+	Average (3,eI(),FP2,False)
+	Average (3,Temp_C(),FP2,False)
+	Average (3,eR_tc(),FP2,False)
+	Average (3,eI_tc(),FP2,False)
+	Average (3,wfv(),FP2,False)
+	Average (3,NaCI(),FP2,False)
+	Average (3,SoilCond(),FP2,False)
+	Average (3,SoilCond_tc(),FP2,False)
+	Average (3,SoilWaCond_tc(),FP2,False)
+EndTable
+
+'Main Program
+BeginProg
+   
+  'Transducer calibration coef SN 2856497
+  A0 = 20.06099
+  A1 = -1.852369
+  SP_offset = -1.37  'set 11-15-2013 by Brad Lyles
+  Judd_offset = 187.4  'average reading 8-28-09
+  '
+  SWE_mult(1) = 76.569              'Unique multiplier and offset for SWE measurements.
+  SWE_intercept(1) = -2.265 'set 11-15-2013 by Brda Lyles
+  
+	Scan(10,Sec,3,0)
+		'Default Datalogger Battery Voltage measurement Batt_Volt:
+		Battery(Batt_Volt)
+		PanelTemp(PanelT,10)
+'Store Current date and time
+	  RealTime (rTime)
+	  Hour = (Hour*100) + Minute
+	  
+' measure 10' AT/RH
+'		Therm107 (Air_T_C,1,3,Vx2,0,250,1.0,0)
+'		ExciteV (Vx2,2500,150)
+'		VoltSe (RH,1,mV2500,4,1,0,250,0.1,0)
+		
+		SDMINT8 (int8(),0,2222,2222,2222,2222,0,0,1000.0,0)
+		
+		' geonor
+		PulseCount (Geonor_Hz,1,1,0,1,1.0,0)
+'		if Geonor_Hz < 1000 then
+'			Geonor_Hz = Geonor_Hz + 2048
+'		EndIf
+		
+		Geo_F_F0 = 0.001 * (Geonor_Hz - 1036.4)
+		Geo_PCPN = -0.0205 + (16.816 * Geo_F_F0) + (9.5020 * Geo_F_F0^2)
+		Geo_inch = Geo_PCPN * 0.3937
+		
+'measure 25 ft sensors
+'	PulseCount(WS_ms_25ft,1,1,1,1,0.098,0)
+    WS_ms_25ft = WS_ms_25ft * 0.098
+		BrHalf(WindDir_25ft,1,mV2500,1,1,1,2500,True,0,_60Hz,355,0)
+		If WindDir_25ft>=360 Then WindDir_25ft=0
+		
+
+		'CS105 Barometric Pressure Sensor measurement BP_mbar:
+		If IfTime(14,15,Min) Then PortSet(4,1)
+		If IfTime(0,15,Min) Then
+			VoltSe(BP_mbar,1,mV2500,7,1,0,_60Hz,0.184,600.0)
+			BP_mbar=BP_mbar*1.0
+			PortSet(4,0)
+		EndIf
+		
+		'LI200X Pyranometer measurements SlrMJ and SlrkW:
+		VoltDiff(SlrkW,1,mV7_5,5,True,0,_60Hz,1,0)
+		If SlrkW<0 Then SlrkW=0
+		SlrMJ=SlrkW*0.001
+		SlrkW=SlrkW*0.2
+		
+		'Measure SnowPillow Druck transducer
+		If IfTime(30,60,Sec) Then
+		  PortSet(9,1)
+		  Delay(0,250,mSec)
+		  VoltSe(SnowPillow_mv,1,mv5000,8,0,0,_60Hz,0.001,0.0)
+		  SnowPillow_in = SnowPillow_mv*A0+A1
+		  SnowPillow_in = SnowPillow_in - SP_offset
+		  PortSet(9,0)
+		EndIf
+
+		'		measure 100 ft sensors
+'		PulseCount(WS_ms_100ft,1,2,1,1,0.098,0)
+    WS_ms_100ft = WS_ms_100ft * 0.098
+		BrHalf(WindDir_100ft,1,mV2500,2,1,1,2500,True,0,_60Hz,355,0)
+		If WindDir_100ft>=360 Then WindDir_100ft=0
+		
+		
+		'  measure Air Temp/RH from 25ft and 100 ft via AM16/32 #1 
+		If IfTime(40,60,Sec) Then
+		  PortSet(8,1)
+			  
+        Delay(0,800,mSec)
+        'Switch to next AM16/32 Multiplexer channel
+			  PulsePort(6,10000)
+			  Delay(0,2000,mSec)
+        VoltSe(AirTC_25ft,1,mV2500,5,0,0,_60Hz,0.1,-40.0)
+		    VoltSe(RH_25ft,1,mV2500,6,0,0,_60Hz,0.1,0)
+		    If RH_25ft>100 AND RH_25ft<108 Then RH_25ft=100
+		   'Switch to next AM16/32 Multiplexer channel
+			  PulsePort(6,10000)
+			  Delay(0,2000,mSec)
+        VoltSe(AirTC_100ft,1,mV2500,5,0,0,_60Hz,0.1,-40.0)
+		    VoltSe(RH_100ft,1,mV2500,6,0,0,_60Hz,0.1,0)
+		    If RH_100ft>100 AND RH_100ft<108 Then RH_100ft=100
+		    'Switch to next AM16/32 Multiplexer channel
+			  PulsePort(6,10000)
+			  Delay(0,2000,mSec)
+        VoltSe(Air_T_C,1,mV2500,5,0,0,_60Hz,0.1,-40.0)
+		    VoltSe(RH,1,mV2500,6,0,0,_60Hz,0.1,0)
+		    If RH>100 AND RH<108 Then RH=100
+        
+		EndIf
+		PortSet(8,0)  'Turn AM16/32 Multiplexer Off
+		
+		'  measure soil moisture sensors
+		If IfTime(50,60,Sec) Then Flag(1)=True
+		If Flag(1)=True Then
+		  PortSet(5,1) 'turn on AM16/32#1
+		  Delay(0,1500,mSec)
+		  i=1
+		  SubScan(0,uSec,3)
+			  'Switch to next AM16/32 Multiplexer channel
+			  PulsePort(6,10000)
+			  VoltSe (Vraw(i,1),1,mV5000,11,1,0,250,1,0)
+			  VoltSe (Vraw(i,2),1,mV5000,12,1,0,250,1,0)
+			  VoltSe (Vraw(i,3),1,mV5000,13,1,0,250,1,0)
+			  VoltSe (Vraw(i,4),1,mV5000,14,1,0,250,1,0)
+			  V(1) = Vraw(i,1) * 0.001
+			  V(2) = Vraw(i,2) * 0.001
+			  V(3) = Vraw(i,3) * 0.001
+			  V(4) = Vraw(i,4) * 0.001
+			  HydraProbe (HydraP(),V(),1,2,1,0)
+			  SoilType(i) = HydraP(1)
+        eR(i) = HydraP(2)
+        eI(i) = HydraP(3)
+        Temp_C(i) = HydraP(4)
+        eR_tc(i) = HydraP(5)
+        eI_tc(i) = HydraP(6)
+        wfv(i) = HydraP(7)
+        NaCI(i) = HydraP(8)
+        SoilCond(i) = HydraP(9)
+        SoilCond_tc(i) = HydraP(10)
+        SoilWaCond_tc(i) = HydraP(11)
+			  i=i+1
+		  NextSubScan	
+		  Flag(1) = False
+		EndIf
+		PortSet(5,0)  'Turn AM16/32 Multiplexer Off
+		
+		'  measure Judd snow depth sensors via AM16/32#2
+		If IfTime(20,60,Sec) Then
+		  PortSet(7,1)
+			  'Turn ON the depth sesor with 5V via C7           
+        'wait 0.8 seconds for the sensor to output the Air Temp.
+        Delay(0,800,mSec)
+        'Air Temp is output in milliVolts, scaled to Kelvin and then convert to Celsius.
+        VoltDiff(JUDD_AT, 1,mV2500, 8, True, 0, 250, 0.2, -273)
+        Delay(0,1800,mSec)
+        VoltDiff(JUDD_Depth, 1,mV2500, 8, True, 0, 250, -0.19685, 0)
+        JUDD_Depth = JUDD_Depth + Judd_offset
+		EndIf
+		PortSet(7,0)  'Turn AM16/32 Multiplexer Off
+		
+		'-------------------------------> SWE Sensor <----------------------------------------
+'  Snow Water Equivalent sensor instructions
+  If (IfTime(0,1,Min)) Then Flag(4) = True
+  If (Flag(4) = True) Then
+      i=1
+      BrFull (SWE_mV(),1,mV7_5,2,Vx3,1,2500,True ,True ,250,350,1.0,0)
+      SWE_cm(i) = SWE_mV(i) * SWE_mult(i) + SWE_intercept(i)
+   Flag(4) = False
+  EndIf
+		
+		'Call Data Tables and Store Data
+		CallTable(TenMin)
+		CallTable(Hydra)
+		CallTable(Raw)
+	NextScan
+EndProg
