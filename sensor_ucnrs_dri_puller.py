@@ -3,7 +3,6 @@
 # name: sensor_ucnrs_dri_puller.py
 # author: collin bode, email: collin@berkeley.edu
 # date: 2016-05-09
-# Python Version 3.x required
 #
 # Purpose:  Performs a web-scrape of the WRCC website pulling data for 
 # each UCNRS weather station managed by WRCC.  Export files are made to replicate 
@@ -58,14 +57,16 @@ booFirstRun = False     # True = Download all data available from 1990 until now
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
-booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
+booWriteHeader = False  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
-booDownloadData = False  # True(default). False will only download headers.
+booDownloadData = True  # True(default). False will only download headers.
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # WRCC has codes for each UC weather station
+#stations = {'Fort Ord':'ucfo'}
+
 stations = {'Hastings':'ucha',
 'Blue Oak Ranch':'ucbo',
 'Angelo':'ucac',
@@ -74,6 +75,7 @@ stations = {'Hastings':'ucha',
 'Burns':'ucbu',
 'Chickering':'ucca',
 'Elliott':'ucel',
+'Fort Ord':'ucfo',
 'James':'ucja',
 'Jepson':'ucjp',
 'Rancho Marino':'ucrm',
@@ -248,8 +250,8 @@ for station_name,station in stations.items():
                     fieldname = fieldname.replace('Average','Avg')
                     fieldname = fieldname.replace('Miscellaneous','Misc')
                     fieldname = fieldname.replace('Identification','ID')
-                    fieldname = fieldname.replace('Standard_Deviation','Std Dev')
-                    fieldname = fieldname.replace('Standard_Deveation','Std Dev')
+                    fieldname = fieldname.replace('Standard_Deviation','Std_Dev')
+                    fieldname = fieldname.replace('Standard_Deveation','Std_Dev')
                     fieldname = fieldname.replace('_mag/arcsec2','_mag')
                     fieldname = fieldname.replace('/','')
                     fieldname = fieldname.replace('\\','')
@@ -342,7 +344,7 @@ for station_name,station in stations.items():
     # Finish up with station 
     fout.close()  
 
-print('All Done!')
+#print('All Done!')
 
 
 ############################################################################
