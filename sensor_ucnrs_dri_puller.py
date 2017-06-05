@@ -67,8 +67,10 @@ website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # Define path and station filename
 #path = '/data/sensor/UCNRS/'
-path = '/Users/collin/Desktop/WhatsWrongWithJames/'
-pwfilepath = '/Users/collin/git/odm.pw'
+path = 'S:/Workspace/UCNRS_Datfiles/'
+pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
+#path = '/Users/collin/Desktop/WhatsWrongWithJames/'
+#pwfilepath = '/Users/collin/git/odm.pw'
 
 # Function to create ODM Database connection
 def odm_connect(pwfilepath,boo_dev=False):
@@ -187,7 +189,9 @@ def create_header(station,station_name,time_start):
     rd_head = pull_dri(station,time_start,time_end)
     
     # Generate the fixed parts of the header
-    row1 = '"TOA5","'+station_name+'","'+station+'","DRI WRCC webscrape"'
+    # "TOA5","ucja_james","CR1000","3437","CR1000.Std.30.01","CPU:UC_James_Reserve_Meadow_ver_D.CR1","45609","TenMin"
+    # <file format>,<logger type>,<?loggercode?>,<OS version>,<Running code>,<last record>,<table name> 
+    row1 = '"TOA5","'+station_name+'","CR1000,"9999","CR1000.Std.30.01","CPU:DRI_WRCC_webscrape.cr1","49999","'+station+'"'
     row2 = '"TIMESTAMP","RECORD"'
     row3 = '"TS","RN"'
     row4 = '"",""'
@@ -305,12 +309,8 @@ for station_name,station,station_first_time in station_list:
         booWriteHeader = True
     # booWriteHeader & booDownloadData False: Use to only write headers to separate file
     elif(booWriteHeader == True and booDownloadData == False):
-        if(station =='hipk' or station == 'whpt'):
-            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
-            time_end = dt.datetime.now() - dt.timedelta(days=27)
-        else:
-            time_start = dt.datetime.strptime('2015-09-20 01:00:00',"%Y-%m-%d %H:%M:%S")
-            time_end = dt.datetime.strptime('2015-09-22 01:00:00',"%Y-%m-%d %H:%M:%S")
+        time_start = dt.datetime.now() - dt.timedelta(days=29)  
+        time_end = dt.datetime.now()
         time_start_o = time_start
     # Normal operation - daily download
     else: #booFirstRun == False
