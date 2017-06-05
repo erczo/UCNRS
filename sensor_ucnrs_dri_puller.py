@@ -48,6 +48,7 @@
 ################################################################################
 
 import requests
+import mysql.connector
 import datetime as dt
 import os
 
@@ -57,15 +58,58 @@ booFirstRun = False     # True = Download all data available from 1990 until now
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
-booWriteHeader = False  # True = Get Long Header parse into LoggerNet header.
+booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
-booDownloadData = True  # True(default). False will only download headers.
+booDownloadData = False  # True(default). False will only download headers.
 
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
+# Define path and station filename
+#path = '/data/sensor/UCNRS/'
+path = '/Users/collin/Desktop/WhatsWrongWithJames/'
+pwfilepath = '/Users/collin/git/odm.pw'
+
+# Function to create ODM Database connection
+def odm_connect(pwfilepath,boo_dev=False):
+    # NOTE: password file should NEVER be uploaded to github!
+    fpw = open(pwfilepath,'r')
+    user = fpw.readline().strip()
+    pw = fpw.readline().strip()
+    fpw.close()
+    if(boo_dev == True):
+        db = 'odm_dev'
+    else:
+        db = 'odm'
+    cnx = mysql.connector.connect(
+        user=user,
+        password=pw,
+        host='gall.berkeley.edu',
+        database=db)
+    return cnx
+
+# Function to get list of UCNRS stations, DRI prefix, and start date
+def odm_station_list(pwfilepath):
+    sql = 'SELECT st.StationName,st.FileName,min(startdate) as startdate '+\
+          'FROM datastreams as ds, stations as st '+\
+          'WHERE ds.StationName = st.StationName AND st.mc_name = "UCNRS" '+\
+          'GROUP BY st.stationname,st.filename'
+    conn = odm_connect(pwfilepath)
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    st_list = []
+    for stationname,datfile,date_start in cursor.fetchall():
+        ss = datfile.split('_')
+        station = ss[0]
+        #print(stationname,station,str(date_start))
+        st_list.append([stationname,station,date_start])    
+    cursor.close()
+    conn.close()
+    return st_list
+
+'''
 # WRCC has codes for each UC weather station
-#stations = {'Fort Ord':'ucfo'}
+stations = {'James':'ucja','Jepson':'ucjp'}
 
 stations = {'Hastings':'ucha',
 'Blue Oak Ranch':'ucbo',
@@ -95,78 +139,11 @@ stations = {'Hastings':'ucha',
 'WhiteMt Crooked':'croo',
 'Younger':'ucyl',
 'Sagehen Creek':'sagh'}
-
 # stations that only can download 30 days or newer without password
-#stations = ['hipk','whpt','sagh','croo','wmtn','barc'] 
+# stations = ['hipk','whpt','sagh','croo','wmtn','barc'] 
+'''
 
-   
-# Loop through all the stations, webscrape, and parse
-for station_name,station in stations.items():
-    #print(station_name,station)    
-    
-    # Define path and station filename
-    path = '/data/sensor/UCNRS/'
-    #path = '/Users/cbode/Documents/GoogleDrive/UCNRS_WeatherStations/DatFiles_DRI/'
-    timepath = path+'dri_time/'
-    headpath = path+'dri_headers/'
-    
-    # Check for existance of the helper files directories, if not create
-    if(os.path.exists(timepath) == False):  
-        os.makedirs(timepath)
-    if(os.path.exists(headpath) == False):
-        os.makedirs(headpath)
-
-    # Define file paths
-    fstation = station+'_'+station_name.replace(' ','_').lower()+'_dri.dat'
-    fpath = path+fstation
-    ftpath = timepath+fstation+'.time'         # The .time file holds the last timestmap recorded
-    fheadpath = headpath+fstation+'.header' # The .header file just holds the header 
-    write_mode = 'a' # append to existing file
-    
-    # Build a header if the file doesn't exist yet and FirstRun wasn't called.
-    if(os.path.exists(fpath) == False):
-        booFirstRun == True
-
-    #### TIME 
-    # booFirstRun set up file header and download all data
-    if(booFirstRun == True):
-        if(station =='hipk' or station == 'whpt'):
-            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
-        else:
-            time_start = dt.datetime.strptime('1990-01-01 01:00:00',"%Y-%m-%d %H:%M:%S")
-        time_start_o = time_start
-        time_end = dt.datetime.now()
-        write_mode = 'w' # new file
-        booWriteHeader = True
-    # booWriteHeader & booDownloadData False: Use to only write headers to separate file
-    elif(booWriteHeader == True and booDownloadData == False):
-        if(station =='hipk' or station == 'whpt'):
-            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
-            time_end = dt.datetime.now() - dt.timedelta(days=27)
-        else:
-            time_start = dt.datetime.strptime('2015-09-20 01:00:00',"%Y-%m-%d %H:%M:%S")
-            time_end = dt.datetime.strptime('2015-09-22 01:00:00',"%Y-%m-%d %H:%M:%S")
-        time_start_o = time_start
-    # Normal operation - daily download
-    else: #booFirstRun == False
-        try:
-            ft = open(ftpath,'r')   # open .time file and get last datetime pulled
-            dtstring = (ft.read()).strip()
-            #print(station+' last date: '+dtstring)
-            time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
-            time_start = time_start_o - dt.timedelta(days=1) # add a day for safety
-            time_end = dt.datetime.now()
-            ft.close()
-        except:
-            print(ftpath+" not found or doesn't have valid dates. Skipping...")
-            continue
-    
-    # HEADER 
-    if(booWriteHeader == True):
-        head = '02'   # long header
-    else:
-        head = '03'  # no header
-                
+def pull_dri(station,time_start,time_end):                
     # Define all POST variables required to make WRCC's website form to work
     post_data = {'stn':station,
     'smon':str(time_start.month).zfill(2),   
@@ -182,7 +159,7 @@ for station_name,station in stations.items():
     'flag':'Y',                         
     'Dfmt':'06',                        
     'Tfmt':'01',                        
-    'Head':head,                        
+    'Head':'02',                        
     'Deli':'01',                         
     'unit':'M',
     'WsMon':'01',
@@ -201,122 +178,204 @@ for station_name,station in stations.items():
     r = requests.post(website,post_data)
 
     # R now has the downloaded data. 
-    received_data = (r.text).split("\n")
+    rd = (r.text).split("\n")
+    return rd
+    
+def create_header(station,station_name,time_start):
+    # pull one day's data with header
+    time_end = time_start + dt.timedelta(days=1)
+    rd_head = pull_dri(station,time_start,time_end)
+    
+    # Generate the fixed parts of the header
+    row1 = '"TOA5","'+station_name+'","'+station+'","DRI WRCC webscrape"'
+    row2 = '"TIMESTAMP","RECORD"'
+    row3 = '"TS","RN"'
+    row4 = '"",""'
+    j = 0
+    t = 0   # how many duplicates of Min TC 10m are there?
+    print('Header being created...')
+    for row in rd_head:
+        #print(row)
+        j += 1
+        if(len(row) > 0):
+            fields = row.split("\r")
+            firstchar = fields[0][0]
+            if(firstchar == ':'): 
+                fieldname = fields[0]
 
-    # Open file for writing        
+                # DRI long headers are sentence descriptions
+                # This segment shortens them to field names with no unusual characters
+                fieldname = fieldname.replace('"','')                                      
+                fieldname = fieldname.replace(':','')                    
+                fieldname = fieldname.strip()
+                fieldname = fieldname.replace(' ','_')
+                fieldname = fieldname.replace('_in.','_Inches')
+                fieldname = fieldname.replace('.','')
+                fieldname = fieldname.replace('(','')
+                fieldname = fieldname.replace(')','')
+                fieldname = fieldname.replace('_#','')
+                fieldname = fieldname.replace('#','')
+                fieldname = fieldname.replace('_-_','_')
+                fieldname = fieldname.replace("'","")
+                fieldname = fieldname.replace('`','')
+                fieldname = fieldname.replace('__','_')
+                fieldname = fieldname.replace('Maximum','Max')
+                fieldname = fieldname.replace('Minimum','Min')
+                fieldname = fieldname.replace('Temperature','Temp')
+                fieldname = fieldname.replace('temperature','Temp')
+                fieldname = fieldname.replace('Ave_','Avg_')
+                fieldname = fieldname.replace('Average','Avg')
+                fieldname = fieldname.replace('Miscellaneous','Misc')
+                fieldname = fieldname.replace('Identification','ID')
+                fieldname = fieldname.replace('Standard_Deviation','Std_Dev')
+                fieldname = fieldname.replace('Standard_Deveation','Std_Dev')
+                fieldname = fieldname.replace('_mag/arcsec2','_mag')
+                fieldname = fieldname.replace('/','')
+                fieldname = fieldname.replace('\\','')
+                
+                # Fix Thermocouple duplicate 
+                if('Min_Temp_Thermocouple_10' in fieldname):
+                    t += 1
+                    if(t == 2):
+                        fieldname = fieldname.replace('Min','Avg')
+
+                # Field units are inserted for posterity, but not used by loader
+                fieldunits = fields[1].strip()
+                fieldunits = (fieldunits[1:len(fieldunits)-1]).strip()
+                #print(j,' fieldname:'+fieldname+', units: '+fieldunits+"\n")
+                if(fieldname == 'Day_of_Year' or fieldname == 'Time_of_Day'):
+                    # ignore these fields
+                    row2 = row2
+                else:                    
+                    row2 += ',"'+fieldname+'","'+fieldname+'_flag"'
+                    row3 += ',"",""'
+                    row4 += ',"'+fieldunits+'","text"'
+            # Stop when you reach data
+            if(firstchar == '1' or  firstchar == '2'):
+                print('create_header',station,'DATA FOUND BREAKING',fields[0][0:10])
+                break
+       
+    # Print new header
+    #print("row1 = "+row1)
+    #print("row2 = "+row2)
+    #print("row3 = "+row3)
+    #print("row4 = "+row4)
+    #print("\n")
+    
+    header = [row1,row2,row3,row4]    
+    return header
+   
+# Loop through all the stations, webscrape, and parse
+station_list = odm_station_list(pwfilepath)
+for station_name,station,station_first_time in station_list:
+    print(station_name,station,str(station_first_time))    
+    
+    # Check for existance of the helper files directories, if not create
+    timepath = path+'dri_time/'
+    headpath = path+'dri_headers/'
+    if(os.path.exists(timepath) == False):  
+        os.makedirs(timepath)
+    if(os.path.exists(headpath) == False):
+        os.makedirs(headpath)
+
+    # Define filename paths
+    fstation = station+'_'+station_name.replace(' ','_').lower()+'_dri'
+    fpath = path+fstation+'.dat'
+    frawpath = path+fstation+'_raw.txt'
+    ftpath = timepath+fstation+'.time'         # The .time file holds the last timestmap recorded
+    fheadpath = headpath+fstation+'.header' # The .header file just holds the header 
+    write_mode = 'a' # append to existing file
+    
+    # Build a header if the file doesn't exist yet and FirstRun wasn't called.
+    if(os.path.exists(fpath) == False):
+        booFirstRun == True
+
+    #### TIME #### 
+    # booFirstRun set up file header and download all data
+    if(booFirstRun == True):
+        if(station =='hipk' or station == 'whpt'):
+            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
+        else:
+            #time_start = dt.datetime.strptime('1990-01-01 01:00:00',"%Y-%m-%d %H:%M:%S") #  DEBUG  '2017-04-27 01:00:00'
+            time_start = station_first_time                                
+        time_start_o = time_start
+        time_end = dt.datetime.now()
+        #time_end = dt.datetime.strptime('2015-01-05 01:00:00',"%Y-%m-%d %H:%M:%S")  # DEBUG
+        write_mode = 'w' # new file
+        booWriteHeader = True
+    # booWriteHeader & booDownloadData False: Use to only write headers to separate file
+    elif(booWriteHeader == True and booDownloadData == False):
+        if(station =='hipk' or station == 'whpt'):
+            time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
+            time_end = dt.datetime.now() - dt.timedelta(days=27)
+        else:
+            time_start = dt.datetime.strptime('2015-09-20 01:00:00',"%Y-%m-%d %H:%M:%S")
+            time_end = dt.datetime.strptime('2015-09-22 01:00:00',"%Y-%m-%d %H:%M:%S")
+        time_start_o = time_start
+    # Normal operation - daily download
+    else: #booFirstRun == False
+        try:
+            ft = open(ftpath,'r')   # open .time file and get last datetime pulled
+            dtstring = (ft.read()).strip()
+            time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
+            time_start = time_start_o - dt.timedelta(days=1) # add a day for safety
+            time_end = dt.datetime.now()
+            ft.close()
+        except:
+            print(ftpath+" not found or doesn't have valid dates. Skipping...")
+            continue
+    
+    ###########
+    # Webscrape DRI - pull headers and data
+    received_data = pull_dri(station,time_start,time_end)
+
+    # dump raw text from DRI    
+    frawout = open(frawpath,'w')
+    for row in received_data:
+        frawout.write(row+'\n')
+    frawout.close()
+
+    ###########
+    # Open .dat file for writing        
     fout = open(fpath,write_mode)    
     
-    ############################################################################
-    # HEADER: Build a new header. Ginger wants as similar to .dat as possible.    
-    if(booWriteHeader == True):
-        row1 = '"TOA5","'+station_name+'","'+station+'","DRI WRCC webscrape"'
-        row2 = '"TIMESTAMP","RECORD"'
-        row3 = '"TS","RN"'
-        row4 = '"",""'
-        j = 0
-        t = 0   # how many duplicates of Min TC 10m are there?
-        booWriteHeaderlocal = False
-        for row in received_data:
-            #print(row)
-            j += 1
-            if(len(row) > 0):
-                fields = row.split("\r")
-                firstchar = fields[0][0]
-                if(firstchar == ':'): 
-                    booWriteHeaderlocal = True
-                    fieldname = fields[0]
-
-                    # DRI long headers are sentence descriptions
-                    # This segment shortens them to field names with no unusual characters
-                    fieldname = fieldname.replace('"','')                                      
-                    fieldname = fieldname.replace(':','')                    
-                    fieldname = fieldname.strip()
-                    fieldname = fieldname.replace(' ','_')
-                    fieldname = fieldname.replace('_in.','_Inches')
-                    fieldname = fieldname.replace('.','')
-                    fieldname = fieldname.replace('(','')
-                    fieldname = fieldname.replace(')','')
-                    fieldname = fieldname.replace('_#','')
-                    fieldname = fieldname.replace('#','')
-                    fieldname = fieldname.replace('_-_','_')
-                    fieldname = fieldname.replace("'","")
-                    fieldname = fieldname.replace('`','')
-                    fieldname = fieldname.replace('__','_')
-                    fieldname = fieldname.replace('Maximum','Max')
-                    fieldname = fieldname.replace('Minimum','Min')
-                    fieldname = fieldname.replace('Temperature','Temp')
-                    fieldname = fieldname.replace('temperature','Temp')
-                    fieldname = fieldname.replace('Ave_','Avg_')
-                    fieldname = fieldname.replace('Average','Avg')
-                    fieldname = fieldname.replace('Miscellaneous','Misc')
-                    fieldname = fieldname.replace('Identification','ID')
-                    fieldname = fieldname.replace('Standard_Deviation','Std_Dev')
-                    fieldname = fieldname.replace('Standard_Deveation','Std_Dev')
-                    fieldname = fieldname.replace('_mag/arcsec2','_mag')
-                    fieldname = fieldname.replace('/','')
-                    fieldname = fieldname.replace('\\','')
-                    
-                    # Fix Thermocouple duplicate 
-                    if('Min_Temp_Thermocouple_10' in fieldname):
-                        t += 1
-                        if(t == 2):
-                            fieldname = fieldname.replace('Min','Avg')
-
-                    # Field units are inserted for posterity, but not used by loader
-                    fieldunits = fields[1].strip()
-                    fieldunits = (fieldunits[1:len(fieldunits)-1]).strip()
-                    #print(j,' fieldname:'+fieldname+', units: '+fieldunits+"\n")
-                    if(fieldname == 'Day_of_Year' or fieldname == 'Time_of_Day'):
-                        # ignore these fields
-                        row2 = row2
-                    else:                    
-                        row2 += ',"'+fieldname+'","'+fieldname+'_flag"'
-                        row3 += ',"",""'
-                        row4 += ',"'+fieldunits+'","text"'
-                # Stop when you reach data
-                if(firstchar == '1' or  firstchar == '2'):
-                    #print(station,'DATA FOUND BREAKING',fields[0][0:10])
-                    break
-        '''        
-        # Print new header
-        print("row1 = "+row1)
-        print("row2 = "+row2)
-        print("row3 = "+row3)
-        print("row4 = "+row4)
-        print("\n")
-        '''
-        # Write header
-        if(booWriteHeaderlocal == True):
-            # header to empty .dat
-            if(booFirstRun == True):
-                print(station_name,'writing header to .dat file')
-                fout.write(row1+"\n")
-                fout.write(row2+"\n")
-                fout.write(row3+"\n")
-                fout.write(row4+"\n")
-            # header to header file
-            print(station_name,'writing header to header file')
-            fheadout = open(fheadpath,'w')
-            fheadout.write(row1+"\n")
-            fheadout.write(row2+"\n")
-            fheadout.write(row3+"\n")
-            fheadout.write(row4+"\n")
+    ###########
+    # HEADER: Build a new header. Ginger wanted as similar to .dat as possible.    
+    if(booWriteHeader == True):       
+        header = create_header(station,station_name,time_start)        
+        if(len(header[1]) > 22):   # make sure the header has something in it
+            print(station_name,'writing header to header file and dat file')
+            fheadout = open(fheadpath,'w')       # header to header file
+            for h in range(0,4):
+                fheadout.write(header[h]+"\n")
+                fout.write(header[h]+"\n")   # header to empty .dat                
             fheadout.close()
         else:
             print(station+' has no data for time-period. cannot download header.')
-            
+                       
     ############################################################################
     # Parse Data 
     # Make sure first character is from year (19xx or 20xx)
     # Merge date and time into TIMESTAMP 
+    booFoundTime = False
+    booMidHeader = False
     timestamp = 'GEORGE'
+    ts_previous = time_start
+    ts = time_start
+    l = 0
+    h = 0
     if(booDownloadData == True):
         #print('____Data next____')
         for row in received_data:
+            l += 1
+            #print('rd:',row)
             if(len(row) > 0):
                 fields = row.split(",")
                 firstchar = fields[0][0]
                 if(firstchar == '1' or firstchar == '2'):
+                    booFoundTime = True
+                    booMidHeader = False
+                    ts_previous = ts
                     date = fields.pop(0).strip()
                     time = fields.pop(0).strip()
                     ts = dt.datetime.strptime(date+' '+time,"%Y/%m/%d %H:%M")
@@ -328,23 +387,55 @@ for station_name,station in stations.items():
                     if(ts > time_start_o):
                         fout.write(newrow)
                     else:
+                        print(station+' redundant timestamp:',timestamp,' < ',time_start_o)
                         pass
-                        #print(station+' redundant timestamp:',timestamp,' < ',time_start_o)
                     #print(newrow)
-                #else:
-                #    print('BAD HTML! ')
+                # DRI periodically changes headers and columns mid-download.  
+                elif(booFoundTime == True and firstchar == ':' and booMidHeader == True): 
+                    #print('MidHeader:',h,row)
+                    h += 1
+                elif(booFoundTime == True and firstchar == ':' and booMidHeader == False): 
+                    print('ALERT! ALERT! HEADER SWITCH MIDSTREAM!',row)
+                    booMidHeader = True
+                    tslast = ts + (ts - ts_previous)   #  add the station's timestep past last timestamp
+                    
+                    # Must close and move existing .dat file
+                    fout.close() 
+                    pref,suf = fpath.split('.dat')
+                    fpathdated = pref+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.dat'
+                    os.rename(fpath,fpathdated)
+                    
+                    # Close and move existing header file
+                    pref,suf = fheadpath.split('.header')
+                    fheadpathdated = pref+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.header' 
+                    os.rename(fheadpath,fheadpathdated)
+                    
+                    # Open blank file and start over
+                    fout = open(fpath,write_mode)
+                    fheadout = open(fheadpath,'w')       # header to header file
+                    
+                    # re-run header function using copy of downloaded dataset
+                    header = create_header(station,station_name,tslast)
+                    for h in range(0,4):
+                        fout.write(header[h]+"\n") 
+                        fheadout.write(header[h]+"\n") 
+                    fheadout.close()    
+                else:
+                    #print('BAD HTML! ',row)
+                    pass
+                    
         # Write last timestamp
         if(timestamp != 'GEORGE'):
             ft = open(ftpath,'w')
             ft.write(timestamp+"\n")
             ft.close()
-            #print(station+" downloaded and writen to file")
+            print(station+" downloaded and writen to file")
         else:
             print('WARNING! '+station+' did not have any values to download.')
     # Finish up with station 
     fout.close()  
 
-#print('All Done!')
+print('All Done!')
 
 
 ############################################################################
