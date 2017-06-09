@@ -50,28 +50,45 @@
 import requests
 import mysql.connector
 import datetime as dt
+import logger
 import os
 
 # Boolean controls for script. Cron job mode is false, false, true.
-booFirstRun = False     # True = Download all data available from 1990 until now
+booFirstRun = True     # True = Download all data available from 1990 until now
                         #        DRI controlled sites only can download 30 days, 
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
 booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
-booDownloadData = False  # True(default). False will only download headers.
+booDownloadData = True  # True(default). False will only download headers.
 
+# Debug definitions
+DEBUG = 10
+INFO = 20
+WARN = 30
+CRITICAL = 50
+log_level = DEBUG
+                              
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # Define path and station filename
 #path = '/data/sensor/UCNRS/'
-path = 'S:/Workspace/UCNRS_Datfiles/'
-pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
-#path = '/Users/collin/Desktop/WhatsWrongWithJames/'
-#pwfilepath = '/Users/collin/git/odm.pw'
+#path = 'S:/Workspace/UCNRS_Datfiles/'
+#pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
+path = '/Users/collin/Desktop/WhatsWrongWithJames/'
+pwfilepath = '/Users/collin/git/odm.pw'
 
+# Logging Setup
+ll = logging.getLogger(__name__)
+handler = logging.FileHandler(path+'sensor_ucnrs_dri_puller.log') # create a file handler
+handler.setLevel(log_level)
+ll.setLevel(løog_level)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s') # create a logging format
+handler.setFormatter(formatter)
+ll.addHandler(handler)  # add the handlers to the logger
+        
 # Function to create ODM Database connection
 def odm_connect(pwfilepath,boo_dev=False):
     # NOTE: password file should NEVER be uploaded to github!
@@ -103,47 +120,11 @@ def odm_station_list(pwfilepath):
     for stationname,datfile,date_start in cursor.fetchall():
         ss = datfile.split('_')
         station = ss[0]
-        #print(stationname,station,str(date_start))
-        st_list.append([stationname,station,date_start])    
+        if(ll == 3): print(stationname,station,str(date_start))
+        st_list.append([stationname,station,datfile,date_start])    
     cursor.close()
     conn.close()
     return st_list
-
-'''
-# WRCC has codes for each UC weather station
-stations = {'James':'ucja','Jepson':'ucjp'}
-
-stations = {'Hastings':'ucha',
-'Blue Oak Ranch':'ucbo',
-'Angelo':'ucac',
-'Bodega':'ucbm',
-'Deep Canyon':'ucde',
-'Burns':'ucbu',
-'Chickering':'ucca',
-'Elliott':'ucel',
-'Fort Ord':'ucfo',
-'James':'ucja',
-'Jepson':'ucjp',
-'Rancho Marino':'ucrm',
-'BigCreek Whale':'whpt',
-'BigCreek Highlands':'hipk',
-'BigCreek Gatehouse':'ucbc',
-'McLaughlin':'ucmc',
-'Motte':'ucmo',
-'Santa Cruz Island':'ucsc',
-'Sedgwick':'ucse',
-'SNARL':'ucsh',
-'Anza Borrego':'ucab',
-'Stunt Ranch':'ucsr',
-'Granites':'ucgr',
-'WhiteMt Summit':'wmtn',
-'WhiteMt Barcroft':'barc',
-'WhiteMt Crooked':'croo',
-'Younger':'ucyl',
-'Sagehen Creek':'sagh'}
-# stations that only can download 30 days or newer without password
-# stations = ['hipk','whpt','sagh','croo','wmtn','barc'] 
-'''
 
 def pull_dri(station,time_start,time_end):                
     # Define all POST variables required to make WRCC's website form to work
@@ -174,7 +155,7 @@ def pull_dri(station,time_start,time_end):
     '.cgifields':'unit',
     '.cgifields':'flag',
     '.cgifields':'srce'} 
-    #print(post_data)
+    if(ll == 3): print(post_data)
     
     # POST request that is the heart of this script
     r = requests.post(website,post_data)
@@ -268,33 +249,46 @@ def create_header(station,station_name,time_start):
     
     header = [row1,row2,row3,row4]    
     return header
-   
+
+# Check for existance of the helper files directories, if not create
+timepath = path+'dri_time/'
+headpath = path+'dri_headers/'
+rawpath = path+'dri_raw/'
+if(os.path.exists(timepath) == False):  
+    os.makedirs(timepath)
+if(os.path.exists(headpath) == False):
+    os.makedirs(headpath)
+if(os.path.exists(rawpath) == False):
+    os.makedirs(rawpath)
+
+
+#############################################################   
 # Loop through all the stations, webscrape, and parse
 station_list = odm_station_list(pwfilepath)
-for station_name,station,station_first_time in station_list:
-    print(station_name,station,str(station_first_time))    
-    
-    # Check for existance of the helper files directories, if not create
-    timepath = path+'dri_time/'
-    headpath = path+'dri_headers/'
-    if(os.path.exists(timepath) == False):  
-        os.makedirs(timepath)
-    if(os.path.exists(headpath) == False):
-        os.makedirs(headpath)
+#station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
+
+for station_name,station,fstation,station_first_time in station_list:
+    print(station_name,station,fstation,str(station_first_time))    
+    continue
 
     # Define filename paths
-    fstation = station+'_'+station_name.replace(' ','_').lower()+'_dri'
+    str_station = station+'_'+station_name.replace(' ','_').lower()+'_dri'
     fpath = path+fstation+'.dat'
-    frawpath = path+fstation+'_raw.txt'
+    frawpath = rawpath+fstation+'_raw.txt'
     ftpath = timepath+fstation+'.time'         # The .time file holds the last timestmap recorded
     fheadpath = headpath+fstation+'.header' # The .header file just holds the header 
+    flogpath = logpath+str_station+'.log'
     write_mode = 'a' # append to existing file
+    
+    # Open Log file
+    flogout = open(flogpath,'a')
     
     # Build a header if the file doesn't exist yet and FirstRun wasn't called.
     if(os.path.exists(fpath) == False):
         booFirstRun == True
 
-    #### TIME #### 
+    ###########
+    # TIME  
     # booFirstRun set up file header and download all data
     if(booFirstRun == True):
         if(station =='hipk' or station == 'whpt'):
@@ -310,7 +304,7 @@ for station_name,station,station_first_time in station_list:
     # booWriteHeader & booDownloadData False: Use to only write headers to separate file
     elif(booWriteHeader == True and booDownloadData == False):
         time_start = dt.datetime.now() - dt.timedelta(days=29)  
-        time_end = dt.datetime.now()
+        time_end = time_start + dt.timedelta(days=1)
         time_start_o = time_start
     # Normal operation - daily download
     else: #booFirstRun == False
@@ -330,7 +324,7 @@ for station_name,station,station_first_time in station_list:
     received_data = pull_dri(station,time_start,time_end)
 
     # dump raw text from DRI    
-    frawout = open(frawpath,'w')
+    frawout = open(frawpath,'a')
     for row in received_data:
         frawout.write(row+'\n')
     frawout.close()
@@ -434,6 +428,7 @@ for station_name,station,station_first_time in station_list:
             print('WARNING! '+station+' did not have any values to download.')
     # Finish up with station 
     fout.close()  
+    flogout.close()
 
 print('All Done!')
 
