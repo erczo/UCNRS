@@ -65,57 +65,25 @@ booDownloadData = True  # True(default). False will only download headers.
 
 # Logging Level
 log_level = logging.DEBUG  # DEBUG (too low level to be useful), INFO (troubleshoot), WARN (default), ERROR, CRITICAL 
-                              
+log = logging.getLogger(__name__)   
+                  
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # Define path and station filename
 #path = '/data/sensor/UCNRS/'
-path = 'S:/Workspace/UCNRS_Datfiles/'
-pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
-#path = '/Users/collin/Desktop/WhatsWrongWithJames/'
-#pwfilepath = '/Users/collin/git/odm.pw'
+#path = 'S:/Workspace/UCNRS_Datfiles/'
+#pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
+path = '/Users/collin/Desktop/WhatsWrongWithJames/'
+pwfilepath = '/Users/collin/git/odm.pw'
 
-class LogClass:
-    def __init__(self,log_level):
-        # Logging Setup
-        self.logger = logging.getLogger(__name__)
-        self.handler = logging.FileHandler(path+'sensor_ucnrs_dri_puller.log') # create a file handler
-        self.handler.setLevel(log_level)
-        self.logger.setLevel(log_level)
-        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s') # create a logging format
-        self.handler.setFormatter(self.formatter)
-        self.logger.addHandler(self.handler)  # add the handlers to the logger                     
-                    
-    def close(self):
-        self.handler.close()
-
-    def debug(self,*message):
-        print('DEBUG!',log.logger.level,log_level)
-        if(log.logger.level == logging.DEBUG):
-            m = ' '.join(message)
-            self.logger.debug(m)
-
-    def info(self,*message):
-        if(log.logger.level == logging.INFO):
-            m = ' '.join(message)
-            self.logger.info(m)
-
-    def warn(self,*message):
-        if(log.logger.level == logging.WARN):
-            m = ' '.join(message)
-            self.logger.warn(m)
-
-    def error(self,*message):
-        if(log.logger.level == logging.ERROR):
-            m = ' '.join(message)
-            self.logger.error(m)
-
-    def critical(self,*message):
-        if(log.logger.level == logging.CRITICAL):
-            m = ' '.join(message)
-            self.logger.critical(m)
-    
+def m(*message):
+    mess = []
+    for me in message:
+        mess.append(str(me))
+    m = ' '.join(mess)
+    return m
+ 
 # Function to create ODM Database connection
 def odm_connect(pwfilepath,boo_dev=False):
     # NOTE: password file should NEVER be uploaded to github!
@@ -147,7 +115,7 @@ def odm_station_list(pwfilepath):
     for stationname,datfile,date_start in cursor.fetchall():
         ss = datfile.split('_')
         station = ss[0]
-        log.debug('odm_station_list:',stationname,station,str(date_start))
+        log.debug(m('odm_station_list:',stationname,station,str(date_start)))
         st_list.append([stationname,station,datfile,date_start])    
     cursor.close()
     conn.close()
@@ -182,7 +150,7 @@ def pull_dri(station,time_start,time_end):
     '.cgifields':'unit',
     '.cgifields':'flag',
     '.cgifields':'srce'} 
-    log.debug(post_data)
+    log.debug(m(post_data))
     
     # POST request that is the heart of this script
     r = requests.post(website,post_data)
@@ -207,7 +175,7 @@ def create_header(station,station_name,time_start):
     t = 0   # how many duplicates of Min TC 10m are there?
     log.info('Header being created...')
     for row in rd_head:
-        log.debug(row)
+        log.debug(m(row))
         j += 1
         if(len(row) > 0):
             fields = row.split("\r")
@@ -254,7 +222,7 @@ def create_header(station,station_name,time_start):
                 # Field units are inserted for posterity, but not used by loader
                 fieldunits = fields[1].strip()
                 fieldunits = (fieldunits[1:len(fieldunits)-1]).strip()
-                log.debug(j,' fieldname:'+fieldname+', units: '+fieldunits+"\n")
+                log.debug(m(j,' fieldname:'+fieldname+', units: '+fieldunits+"\n"))
                 if(fieldname == 'Day_of_Year' or fieldname == 'Time_of_Day'):
                     # ignore these fields
                     row2 = row2
@@ -264,24 +232,39 @@ def create_header(station,station_name,time_start):
                     row4 += ',"'+fieldunits+'","text"'
             # Stop when you reach data
             if(firstchar == '1' or  firstchar == '2'):
-                log.info('create_header',station,'DATA FOUND BREAKING',fields[0][0:10])
+                log.info(m('create_header',station,'DATA FOUND BREAKING',fields[0][0:10]))
                 break
        
     # New header
-    log.debug("row1 = "+row1)
-    log.debug("row2 = "+row2)
-    log.debug("row3 = "+row3)
-    log.debug("row4 = "+row4)
+    log.debug(m("row1 = "+row1))
+    log.debug(m("row2 = "+row2))
+    log.debug(m("row3 = "+row3))
+    log.debug(m("row4 = "+row4))
     log.debug("\n")
     
     header = [row1,row2,row3,row4]    
     return header
 
 #############################################################   
+#
 # BEGIN MAIN
-log = LogClass(log_level)
+#
+#log = LogClass(log_level)
+
+# Logging Setup
+log.setLevel(log_level)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s') # create a logging format
+fhandler = logging.FileHandler(path+'sensor_ucnrs_dri_puller.log') # create a file handler
+fhandler.setLevel(log_level)
+fhandler.setFormatter(formatter)
+log.addHandler(fhandler)            # add the file handler to the logger    
+shandler = logging.StreamHandler()
+shandler.setFormatter(formatter)
+log.addHandler(shandler)            # add the console handler to the logger
+log.disabled = False
+
 log.info('START sensor_ucnrs_dri_puller.py')
-print('log level:',log.logger.level,'handler level:',log.handler.level)
+log.info(m('\t log level:',log.level,'handler level:',shandler.level))
 
 # Check for existance of the helper files directories, if not create
 timepath = path+'dri_time/'
@@ -297,12 +280,11 @@ if(os.path.exists(rawpath) == False):
 
 #############################################################   
 # Loop through all the stations, webscrape, and parse
-station_list = odm_station_list(pwfilepath)
-#station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
+#station_list = odm_station_list(pwfilepath)
+station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
 
 for station_name,station,fstation,station_first_time in station_list:
-    log.info(station_name,station,fstation,str(station_first_time))   
-    continue
+    log.info(m(station_name,station,fstation,str(station_first_time)))   
 
     # Define filename paths
     str_station = station+'_'+station_name.replace(' ','_').lower()+'_dri'
@@ -346,7 +328,7 @@ for station_name,station,fstation,station_first_time in station_list:
                 time_end = dt.datetime.now()
                 ft.close()
             except:
-                log.error("Time File doesn't have valid dates. Skipping...",ftpath)
+                log.error(m("Time File doesn't have valid dates. Skipping...",ftpath))
                 continue
         else:
             log.error("No Time File found: "+ftpath+" Please perform a First Run. Skipping...")
@@ -372,7 +354,7 @@ for station_name,station,fstation,station_first_time in station_list:
     if(booWriteHeader == True):       
         header = create_header(station,station_name,time_start)        
         if(len(header[1]) > 22):   # make sure the header has something in it
-            log.info(station_name,'writing header to header file and dat file')
+            log.info(m(station_name,'writing header to header file and dat file'))
             fheadout = open(fheadpath,'w')       # header to header file
             for h in range(0,4):
                 fheadout.write(header[h]+"\n")
@@ -396,7 +378,7 @@ for station_name,station,fstation,station_first_time in station_list:
         log.info('____Data next____')
         for row in received_data:
             l += 1
-            log.debug('rd:',row)
+            log.debug(m('rd:',row))
             if(len(row) > 0):
                 fields = row.split(",")
                 firstchar = fields[0][0]
@@ -415,15 +397,15 @@ for station_name,station,fstation,station_first_time in station_list:
                     if(ts > time_start_o):
                         fout.write(newrow)
                     else:
-                        log.error('Redundant timestamp:',timestamp,' < ',time_start_o,'row:',row)
+                        log.error(('Redundant timestamp:',timestamp,' < ',time_start_o,'row:',row))
                         pass
-                    log.debug(newrow)
+                    log.debug(m(newrow))
                 # DRI periodically changes headers and columns mid-download.  
                 elif(booFoundTime == True and firstchar == ':' and booMidHeader == True): 
-                    log.debug('MidHeader:',h,row)
+                    log.debug(m('MidHeader:',h,row))
                     h += 1
                 elif(booFoundTime == True and firstchar == ':' and booMidHeader == False): 
-                    log.error('ALERT! ALERT! HEADER SWITCH MIDSTREAM!',row)
+                    log.error(m('ALERT! ALERT! HEADER SWITCH MIDSTREAM!',row))
                     booMidHeader = True
                     tslast = ts + (ts - ts_previous)   #  add the station's timestep past last timestamp
                     
@@ -432,13 +414,13 @@ for station_name,station,fstation,station_first_time in station_list:
                     pref,suf = fpath.split('.dat')
                     fpathdated = pref+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.dat'
                     os.rename(fpath,fpathdated)
-                    log.warn('Midstream header: moved old .DAT file and created new one.',fpathdated,fpath)
+                    log.warn(m('Midstream header: moved old .DAT file and created new one.',fpathdated,fpath))
                     
                     # Close and move existing header file
                     pref,suf = fheadpath.split('.header')
                     fheadpathdated = pref+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.header' 
                     os.rename(fheadpath,fheadpathdated)
-                    log.warn('Midstream header: moved old .HEADER file and created new one.',fheadpathdated,fheadpath)
+                    log.warn(m('Midstream header: moved old .HEADER file and created new one.',fheadpathdated,fheadpath))
                     
                     # Open blank file and start over
                     fout = open(fpath,write_mode)
@@ -451,7 +433,7 @@ for station_name,station,fstation,station_first_time in station_list:
                         fheadout.write(header[h]+"\n") 
                     fheadout.close()    
                 else:
-                    log.debug('BAD HTML! ',row)
+                    log.debug(m('BAD HTML! ',row))
                     pass
                     
         # Write last timestamp
@@ -467,7 +449,11 @@ for station_name,station,fstation,station_first_time in station_list:
 
 # Close out script
 log.info('All Done!')
-log.close()
+fhandler.close()
+shandler.close()
+logging.shutdown()
+log.disabled = True
+del log
 
 
 ############################################################################
