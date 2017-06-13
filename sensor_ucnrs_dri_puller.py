@@ -64,26 +64,42 @@ booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
 booDownloadData = True  # True(default). False will only download headers.
 
 # Logging Level
-log_level = logging.DEBUG  # DEBUG (too low level to be useful), INFO (troubleshoot), WARN (default), ERROR, CRITICAL 
+log_level = logging.INFO  # DEBUG (too low level to be useful), INFO (troubleshoot), WARN (default), ERROR, CRITICAL 
 log = logging.getLogger(__name__)   
+station_name = ''
                   
 # WRCC DRI Website
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # Define path and station filename
 #path = '/data/sensor/UCNRS/'
-#path = 'S:/Workspace/UCNRS_Datfiles/'
-#pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
-path = '/Users/collin/Desktop/WhatsWrongWithJames/'
-pwfilepath = '/Users/collin/git/odm.pw'
+path = 'S:/Workspace/UCNRS_Datfiles/'
+pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
+#path = '/Users/collin/Desktop/WhatsWrongWithJames/'
+#pwfilepath = '/Users/collin/git/odm.pw'
 
+# Helper Function to create a single Logger message string from multiple inputs. Adds Station.
 def m(*message):
-    mess = []
+    mess = [station_name,'-']
     for me in message:
         mess.append(str(me))
     m = ' '.join(mess)
     return m
- 
+
+# Helper function to create a unique filename and avoid clobbering existing files
+def unique_file(f):
+    i = 0
+    f1 = f
+    while(os.path.exists(f1) == True):
+        i += 1
+        ff = f.split('.')
+        suf = ff[len(ff)-1]
+        fff = f.split(suf)
+        pref = fff[0]
+        f1 = pref+'bak'+str(i)+'.'+suf
+        log.info('File exists, '+f+' trying new file: '+f1)
+    return f1
+
 # Function to create ODM Database connection
 def odm_connect(pwfilepath,boo_dev=False):
     # NOTE: password file should NEVER be uploaded to github!
@@ -264,7 +280,7 @@ log.addHandler(shandler)            # add the console handler to the logger
 log.disabled = False
 
 log.info('START sensor_ucnrs_dri_puller.py')
-log.info(m('\t log level:',log.level,'handler level:',shandler.level))
+log.info('\t log level:'+str(log.level)+' handler level:'+str(shandler.level))
 
 # Check for existance of the helper files directories, if not create
 timepath = path+'dri_time/'
@@ -280,18 +296,20 @@ if(os.path.exists(rawpath) == False):
 
 #############################################################   
 # Loop through all the stations, webscrape, and parse
-#station_list = odm_station_list(pwfilepath)
-station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
+station_list = odm_station_list(pwfilepath)
+#station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
+#station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2017, 3, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2017, 4, 30, 9, 50)]]
 
 for station_name,station,fstation,station_first_time in station_list:
     log.info(m(station_name,station,fstation,str(station_first_time)))   
 
     # Define filename paths
-    str_station = station+'_'+station_name.replace(' ','_').lower()+'_dri'
-    fpath = path+fstation+'.dat'
-    frawpath = rawpath+fstation+'_raw.txt'
-    ftpath = timepath+fstation+'.time'         # The .time file holds the last timestmap recorded
-    fheadpath = headpath+fstation+'.header' # The .header file just holds the header 
+    #str_station = station+'_'+station_name.replace(' ','_').lower()+'_dri'
+    str_station,datdump = fstation.split('.dat')
+    fpath = path+fstation
+    frawpath = rawpath+str_station+'_raw.txt'
+    ftpath = timepath+str_station+'.time'         # The .time file holds the last timestmap recorded
+    fheadpath = headpath+str_station+'.header' # The .header file just holds the header 
     write_mode = 'a' # append to existing file
         
     # Build a header if the file doesn't exist yet and FirstRun wasn't called.
@@ -339,7 +357,7 @@ for station_name,station,fstation,station_first_time in station_list:
     received_data = pull_dri(station,time_start,time_end)
 
     # dump raw text from DRI    
-    if(log_level == logging.DEBUG):
+    if(log_level == logging.INFO):
         frawout = open(frawpath,'a')
         for row in received_data:
             frawout.write(row+'\n')
@@ -383,7 +401,6 @@ for station_name,station,fstation,station_first_time in station_list:
                 fields = row.split(",")
                 firstchar = fields[0][0]
                 if(firstchar == '1' or firstchar == '2'):
-                    booFoundTime = True
                     booMidHeader = False
                     ts_previous = ts
                     date = fields.pop(0).strip()
@@ -394,11 +411,12 @@ for station_name,station,fstation,station_first_time in station_list:
                     for field in fields:
                         newrow += ','+field.strip()
                     newrow += "\n"
-                    if(ts > time_start_o):
-                        fout.write(newrow)
-                    else:
-                        log.error(('Redundant timestamp:',timestamp,' < ',time_start_o,'row:',row))
+                    if(ts == ts_previous and booFoundTime == True):
+                        log.error(m('Redundant timestamp:',str(ts),'==',str(ts_previous),'Row:',row))
                         pass
+                    else:
+                        fout.write(newrow)
+                    booFoundTime = True
                     log.debug(m(newrow))
                 # DRI periodically changes headers and columns mid-download.  
                 elif(booFoundTime == True and firstchar == ':' and booMidHeader == True): 
@@ -411,16 +429,16 @@ for station_name,station,fstation,station_first_time in station_list:
                     
                     # Must close and move existing .dat file
                     fout.close() 
-                    pref,suf = fpath.split('.dat')
-                    fpathdated = pref+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.dat'
+                    fpathdated0 = path+str_station+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.dat'
+                    fpathdated = unique_file(fpathdated0)                                                                    
                     os.rename(fpath,fpathdated)
-                    log.warn(m('Midstream header: moved old .DAT file and created new one.',fpathdated,fpath))
+                    log.warning(m('Midstream header: moved old .DAT file and created new one.',fpathdated,fpath))
                     
                     # Close and move existing header file
-                    pref,suf = fheadpath.split('.header')
-                    fheadpathdated = pref+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.header' 
+                    fheadpathdated0 = headpath+str_station+'_'+dt.datetime.strftime(ts,"%Y-%m-%d")+'.header' 
+                    fheadpathdated = unique_file(fheadpathdated0) 
                     os.rename(fheadpath,fheadpathdated)
-                    log.warn(m('Midstream header: moved old .HEADER file and created new one.',fheadpathdated,fheadpath))
+                    log.warning(m('Midstream header: moved old .HEADER file and created new one.',fheadpathdated,fheadpath))
                     
                     # Open blank file and start over
                     fout = open(fpath,write_mode)
