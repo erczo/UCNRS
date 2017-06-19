@@ -72,9 +72,10 @@ station_name = ''
 website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # Define path and station filename
-#path = '/data/sensor/UCNRS/'
-path = 'S:/Workspace/UCNRS_Datfiles/'
-pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
+path = '/home/collin/UCNRS_Datfiles/'
+pwfilepath = '/data/local/bin/sensor/odm.pw'
+#path = 'S:/Workspace/UCNRS_Datfiles/'
+#pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
 #path = '/Users/collin/Desktop/WhatsWrongWithJames/'
 #pwfilepath = '/Users/collin/git/odm.pw'
 
@@ -261,6 +262,23 @@ def create_header(station,station_name,time_start):
     header = [row1,row2,row3,row4]    
     return header
 
+def get_correct_header(station,station_name,t_start):
+    # Go slightly back in time, then check headers for a few days. Take the most recent
+    test_date = t_start - dt.timedelta(days=1)
+    head0 = create_header(station,station_name,test_date)
+    for i in range(1,12):
+        test_date += dt.timedelta(days=1)
+        head = create_header(station,station_name,test_date)
+        if(head0 == head):
+            log.debug(m(str(test_date),'headers same'))
+        else:
+            log.info(m(str(test_date),'header changed! old length:',len(head0[1]),'new lenth:',len(head[1])))
+            log.debug(m(str(time_start),head0[1]))
+            log.debug(m(str(test_date),head[1]))
+            break   
+    return head
+
+
 #############################################################   
 #
 # BEGIN MAIN
@@ -296,9 +314,61 @@ if(os.path.exists(rawpath) == False):
 
 #############################################################   
 # Loop through all the stations, webscrape, and parse
-station_list = odm_station_list(pwfilepath)
+#station_list = odm_station_list(pwfilepath)
 #station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
 #station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2017, 3, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2017, 4, 30, 9, 50)]]
+station_list = [
+ ['WhiteMt Crooked',
+  'croo',
+  'croo_whitemt_crooked_dri.dat',
+  dt.datetime(2005, 4, 15, 19, 0)],
+ ['James',
+  'ucja',
+  'ucja_james_dri.dat',
+  dt.datetime(2009, 12, 31, 10, 30)],
+ ['Jepson',
+  'ucjp',
+  'ucjp_jepson_dri.dat',
+  dt.datetime(2013, 4, 30, 9, 50)]
+]
+'''
+ ['Elliott',
+  'ucel',
+  'ucel_elliott_dri.dat',
+  dt.datetime(2010, 9, 28, 16, 0)],
+ ['WhiteMt Crooked',
+  'croo',
+  'croo_whitemt_crooked_dri.dat',
+  dt.datetime(2005, 4, 15, 19, 0)],
+ ['Sagehen Creek',
+  'sagh',
+  'sagh_sagehen_creek_dri.dat',
+  dt.datetime(1997, 4, 2, 21, 0)],
+ ['James',
+  'ucja',
+  'ucja_james_dri.dat',
+  dt.datetime(2009, 12, 31, 10, 30)],
+ ['Jepson',
+  'ucjp',
+  'ucjp_jepson_dri.dat',
+  dt.datetime(2013, 4, 30, 9, 50)],
+ ['Rancho Marino',
+  'ucrm',
+  'ucrm_rancho_marino_dri.dat',
+  dt.datetime(2011, 2, 1, 13, 40)],
+ ['Sedgwick',
+  'ucse',
+  'ucse_sedgwick_dri.dat',
+  dt.datetime(2011, 5, 18, 14, 50)],
+ ['WhiteMt Summit',
+  'wmtn',
+  'wmtn_whitemt_summit_dri.dat',
+  dt.datetime(2003, 9, 10, 20, 0)],
+ ['Younger',
+  'ucyl',
+  'ucyl_younger_dri.dat',
+  dt.datetime(2015, 9, 2, 16, 50)]]
+'''
 
 for station_name,station,fstation,station_first_time in station_list:
     log.info(m(station_name,station,fstation,str(station_first_time)))   
@@ -370,7 +440,7 @@ for station_name,station,fstation,station_first_time in station_list:
     ###########
     # HEADER: Build a new header. Ginger wanted as similar to .dat as possible.    
     if(booWriteHeader == True):       
-        header = create_header(station,station_name,time_start)        
+        header = get_correct_header(station,station_name,time_start)        
         if(len(header[1]) > 22):   # make sure the header has something in it
             log.info(m(station_name,'writing header to header file and dat file'))
             fheadout = open(fheadpath,'w')       # header to header file
@@ -445,7 +515,7 @@ for station_name,station,fstation,station_first_time in station_list:
                     fheadout = open(fheadpath,'w')       # header to header file
                     
                     # re-run header function 
-                    header = create_header(station,station_name,tslast)
+                    header = get_correct_header(station,station_name,tslast)
                     for h in range(0,4):
                         fout.write(header[h]+"\n") 
                         fheadout.write(header[h]+"\n") 
