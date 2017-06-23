@@ -54,12 +54,12 @@ import logging
 import os
 
 # Boolean controls for script. Cron job mode is false, false, true.
-booFirstRun = True     # True = Download all data available from 1990 until now
+booFirstRun = False     # True = Download all data available from 1990 until now
                         #        DRI controlled sites only can download 30 days, 
                         #        unless you have 'secret' password.
                         # False(default) = just download the last 24 hours 
                         # booWriteHeader will automatically be set to True.
-booWriteHeader = True  # True = Get Long Header parse into LoggerNet header.
+booWriteHeader = False  # True = Get Long Header parse into LoggerNet header.
                         # False(default) = No header, just data. 
 booDownloadData = True  # True(default). False will only download headers.
 
@@ -67,17 +67,10 @@ booDownloadData = True  # True(default). False will only download headers.
 log_level = logging.INFO  # DEBUG (too low level to be useful), INFO (troubleshoot), WARN (default), ERROR, CRITICAL 
 log = logging.getLogger(__name__)   
 station_name = ''
-                  
-# WRCC DRI Website
-website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
 # Define path and station filename
-path = '/home/collin/UCNRS_Datfiles/'
+path = '/data/sensor/UCNRS/'
 pwfilepath = '/data/local/bin/sensor/odm.pw'
-#path = 'S:/Workspace/UCNRS_Datfiles/'
-#pwfilepath = 'C:/Users/me/Documents/GitHub/odm.pw'
-#path = '/Users/collin/Desktop/WhatsWrongWithJames/'
-#pwfilepath = '/Users/collin/git/odm.pw'
 
 # Helper Function to create a single Logger message string from multiple inputs. Adds Station.
 def m(*message):
@@ -139,8 +132,11 @@ def odm_station_list(pwfilepath):
     return st_list
 
 def pull_dri(station,time_start,time_end):                
+    # WRCC DRI Website
+    website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
+
     # Define all POST variables required to make WRCC's website form to work
-    post_data = {'stn':station,
+    post_data = {'stn':station.upper(),
     'smon':str(time_start.month).zfill(2),   
     'sday':str(time_start.day).zfill(2),
     'syea':str(time_start.year)[2:4],  
@@ -163,14 +159,13 @@ def pull_dri(station,time_start,time_end):
     'WeDay':'31',
     'WsHou':'00',
     'WeHou':'24',
-    'Submit Info':'Submit Info',
-    '.cgifields':'unit',
-    '.cgifields':'flag',
-    '.cgifields':'srce'} 
+    'Submit Info':'Submit Info'}
     log.debug(m(post_data))
     
     # POST request that is the heart of this script
     r = requests.post(website,post_data)
+    log.debug(m('pull_dri:header:',r.headers))
+    log.debug(m('pull_dri:status_code:',r.status_code))
 
     # R now has the downloaded data. 
     rd = (r.text).split("\n")
@@ -283,8 +278,6 @@ def get_correct_header(station,station_name,t_start):
 #
 # BEGIN MAIN
 #
-#log = LogClass(log_level)
-
 # Logging Setup
 log.setLevel(log_level)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s') # create a logging format
@@ -314,61 +307,8 @@ if(os.path.exists(rawpath) == False):
 
 #############################################################   
 # Loop through all the stations, webscrape, and parse
-#station_list = odm_station_list(pwfilepath)
-#station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2009, 12, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2013, 4, 30, 9, 50)]]
-#station_list = [['James','ucja','ucja_james_dri.dat',dt.datetime(2017, 3, 31, 10, 30)],['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2017, 4, 30, 9, 50)]]
-station_list = [
- ['WhiteMt Crooked',
-  'croo',
-  'croo_whitemt_crooked_dri.dat',
-  dt.datetime(2005, 4, 15, 19, 0)],
- ['James',
-  'ucja',
-  'ucja_james_dri.dat',
-  dt.datetime(2009, 12, 31, 10, 30)],
- ['Jepson',
-  'ucjp',
-  'ucjp_jepson_dri.dat',
-  dt.datetime(2013, 4, 30, 9, 50)]
-]
-'''
- ['Elliott',
-  'ucel',
-  'ucel_elliott_dri.dat',
-  dt.datetime(2010, 9, 28, 16, 0)],
- ['WhiteMt Crooked',
-  'croo',
-  'croo_whitemt_crooked_dri.dat',
-  dt.datetime(2005, 4, 15, 19, 0)],
- ['Sagehen Creek',
-  'sagh',
-  'sagh_sagehen_creek_dri.dat',
-  dt.datetime(1997, 4, 2, 21, 0)],
- ['James',
-  'ucja',
-  'ucja_james_dri.dat',
-  dt.datetime(2009, 12, 31, 10, 30)],
- ['Jepson',
-  'ucjp',
-  'ucjp_jepson_dri.dat',
-  dt.datetime(2013, 4, 30, 9, 50)],
- ['Rancho Marino',
-  'ucrm',
-  'ucrm_rancho_marino_dri.dat',
-  dt.datetime(2011, 2, 1, 13, 40)],
- ['Sedgwick',
-  'ucse',
-  'ucse_sedgwick_dri.dat',
-  dt.datetime(2011, 5, 18, 14, 50)],
- ['WhiteMt Summit',
-  'wmtn',
-  'wmtn_whitemt_summit_dri.dat',
-  dt.datetime(2003, 9, 10, 20, 0)],
- ['Younger',
-  'ucyl',
-  'ucyl_younger_dri.dat',
-  dt.datetime(2015, 9, 2, 16, 50)]]
-'''
+#station_list = [['Jepson','ucjp','ucjp_jepson_dri.dat',dt.datetime(2017, 4, 30, 9, 50)]]
+station_list = odm_station_list(pwfilepath)
 
 for station_name,station,fstation,station_first_time in station_list:
     log.info(m(station_name,station,fstation,str(station_first_time)))   
