@@ -64,7 +64,7 @@ booWriteHeader = False  # True = Get Long Header parse into LoggerNet header.
 booDownloadData = True  # True(default). False will only download headers.
 
 # Logging Level
-log_level = logging.INFO  # DEBUG (too low level to be useful), INFO (troubleshoot), WARN (default), ERROR, CRITICAL 
+log_level = logging.WARN  # DEBUG (too low level to be useful), INFO (troubleshoot), WARN (default), ERROR, CRITICAL 
 log = logging.getLogger(__name__)   
 station_name = ''
 
@@ -133,7 +133,7 @@ def odm_station_list(pwfilepath):
 
 def pull_dri(station,time_start,time_end):                
     # WRCC DRI Website
-    website = 'http://www.wrcc.dri.edu/cgi-bin/wea_list2.pl'
+    website = 'https://wrcc.dri.edu/cgi-bin/wea_list2.pl'
 
     # Define all POST variables required to make WRCC's website form to work
     post_data = {'stn':station.upper(),
