@@ -24,28 +24,10 @@ def char2bin(inchar):
         psc = pss[3:len(pss)]
     else:
         psc = pss[2:len(pss)]
-    #print(inchar,len(inchar),pso,len(str(pso)),psb,len(psb),pss,len(pss),psc,len(psc))
+    print(inchar,len(inchar),pso,len(str(pso)),psb,len(psb),pss,len(pss),psc,len(psc))
     return psc
 
-pseudobinary_test = [
-    "B]v@YJV",
-    "B]v@WfF@pF@qF@nF@AFAkFAnFAiF@@F@@F@@F@@F@@F@@F@@DjxDbmDZs",
-    "B]v@T^FAHFAJFAGF@AFBhFBjFBgF@@F@@F@@F@@F@@F@\$$PX?V$~$$yEUy$BWX$I]$M%E~$C$EIC7wc6P>,$$u>$~$$^$w$NqkQ$~A'l/\_]~hX$)X?:DoO",
-    "B]v@RzFA\FAdFAXF@DFCUFCaFCNF@@F@@F@@F@@F@@F@@F@@DgnDgBDg[EeJEa_EcV@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT^DT`Dj@D{XGmXChvB]v@RpFAlFArFAdF@DFCpFC|FCaF@@F@@F@@F@@F@@F@@F@@DgLDfjDf{EgYEcLEea@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT_DT`DipD{XGmXChvB]v@Q~FAvFBAFApF@EFDEFDPFC|F@@F@@F@@F@@F@@F@@F@@DfqDf`DfhEfzEdSEfG@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT_DT`DieD{XGmXChvB]v@QtFAtFAvFApF@BFD@FDHFCtF@@F@@F@@F@@F@@F@@F@@DfjDf\DfbEfsEcVEeX@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT_DTaDiVD{XGmXChvB]v@QjFAeFAuFASF@LFCRFCtFBlF@@F@@F@@F@@F@@F@@F@@DfxDfYDfdEfXEbEEdU@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$.$:;Q$/$$`DSHDTZDiAD{XGmXChvB]v@Q`FAHFASF@$F@FFBTFBlFBBF@@F@@F@@F@@F@@F@@F@@DgBDfqDfyEeCEafEcg@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTcDTNDT`DhzD{XGmXChv",
-    "3$^t$m$QM$R$BW$$$$0WV$BB$W$v%Fq$0YDLuC#W$WE$$$V",
-    "B^@Cn|F@eF@oF@`F@EFAIFA]F@~F@@F@@F@@F@@F@@F@@F@@DaAD`mD`yBLeEyWE{z@OsF@@F@@I?7l>v]oj\$c$K/]o$[2ZNd$@$6Y$.ooS *$$$$$($$($4$#>$Kw$CbST$Gx AY$ID4$Pw$Avt$0$E+>_<=m#\80lEn$$S.\V5|$FM$$$C@^F@aF$$VoSBMJ$$$P:$YC~3zjdk:njj/iz9b*yR^{v-8=$AM$f^'$$RRLq"
-]
-#pseudobinary_test = ['DSR']
-#pseudobinary_test = ["3$^t$m$QM$R$BW$$$$0WV$BB$W$v%Fq$0YDLuC#W$WE$$$V"]
-i = 0
-for ps in pseudobinary_test:
-    i += 1
-    psl = len(ps)
-    psmod = psl%3
-    print(i,psl,psmod)
-    if(psmod != 0):
-        print('Pseudobinary has character set('+str(psl)+') that is not divisable by 3('+str(psmod)+').  Skipping',ps)
-        continue
+def pseudo2numbers(ps):
     row = []
     for j in range(0,psl-1,3):
         c1 = char2bin(ps[j])
@@ -74,6 +56,31 @@ for ps in pseudobinary_test:
         number = sign * total * decimals
         row.append(number)
         #print('Final: ',number)    
+    return row
+    
+
+pseudobinary_test = [
+    "B]v@YJV",
+    "B]v@WfF@pF@qF@nF@AFAkFAnFAiF@@F@@F@@F@@F@@F@@F@@DjxDbmDZs",
+    "B]v@T^FAHFAJFAGF@AFBhFBjFBgF@@F@@F@@F@@F@@F@\$$PX?V$~$$yEUy$BWX$I]$M%E~$C$EIC7wc6P>,$$u>$~$$^$w$NqkQ$~A'l/\_]~hX$)X?:DoO",
+    "B]v@RzFA\FAdFAXF@DFCUFCaFCNF@@F@@F@@F@@F@@F@@F@@DgnDgBDg[EeJEa_EcV@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT^DT`Dj@D{XGmXChvB]v@RpFAlFArFAdF@DFCpFC|FCaF@@F@@F@@F@@F@@F@@F@@DgLDfjDf{EgYEcLEea@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT_DT`DipD{XGmXChvB]v@Q~FAvFBAFApF@EFDEFDPFC|F@@F@@F@@F@@F@@F@@F@@DfqDf`DfhEfzEdSEfG@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT_DT`DieD{XGmXChvB]v@QtFAtFAvFApF@BFD@FDHFCtF@@F@@F@@F@@F@@F@@F@@DfjDf\DfbEfsEcVEeX@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTbDT_DTaDiVD{XGmXChvB]v@QjFAeFAuFASF@LFCRFCtFBlF@@F@@F@@F@@F@@F@@F@@DfxDfYDfdEfXEbEEdU@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$.$:;Q$/$$`DSHDTZDiAD{XGmXChvB]v@Q`FAHFASF@$F@FFBTFBlFBBF@@F@@F@@F@@F@@F@@F@@DgBDfqDfyEeCEafEcg@OsF@@F@@I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~I$~DTcDTNDT`DhzD{XGmXChv",
+    "3$^t$m$QM$R$BW$$$$0WV$BB$W$v%Fq$0YDLuC#W$WE$$$V",
+    "B^@Cn|F@eF@oF@`F@EFAIFA]F@~F@@F@@F@@F@@F@@F@@F@@DaAD`mD`yBLeEyWE{z@OsF@@F@@I?7l>v]oj\$c$K/]o$[2ZNd$@$6Y$.ooS *$$$$$($$($4$#>$Kw$CbST$Gx AY$ID4$Pw$Avt$0$E+>_<=m#\80lEn$$S.\V5|$FM$$$C@^F@aF$$VoSBMJ$$$P:$YC~3zjdk:njj/iz9b*yR^{v-8=$AM$f^'$$RRLq"
+]
+#pseudobinary_test = ['DSR']
+#pseudobinary_test = ["3$^t$m$QM$R$BW$$$$0WV$BB$W$v%Fq$0YDLuC#W$WE$$$V"]
+#pseudobinary_test = ["B]v@YJ"]
+i = 0
+for ps in pseudobinary_test:
+    i += 1
+    psl = len(ps)
+    psmod = psl%3
+    print(i,psl,psmod)
+    if(psmod != 0):
+        print('Pseudobinary has character set('+str(psl)+') that is not divisable by 3('+str(psmod)+').  Skipping',ps)
+        continue
+    # Convert the pseudobinary string to number array
+    row = pseudo2numbers(ps)
     print('Pseudobinary:',ps)
     print('Numeric',row)
         
