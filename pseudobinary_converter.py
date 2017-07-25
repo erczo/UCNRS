@@ -79,7 +79,7 @@ def char2bin(inchar):
     pss = str(psb)
     psc = pss[len(pss)-6:len(pss)]
     if(param == 'debug'):
-        print(inchar,len(inchar),pso,len(str(pso)),psb,len(psb),pss,len(pss),psc,len(psc))
+        print(inchar+'-->'+str(unint)+'-->'+str(unbin)+'('+str(len(unbin))+')-->'+str(bit)+'('+str(len(bit))+')')
     return psc
 
 def pseudostring2array(pbstring):
@@ -89,6 +89,8 @@ def pseudostring2array(pbstring):
         bit2 = char2bin(pbstring[j+1])
         bit3 = char2bin(pbstring[j+2])
         bits = bit1+bit2+bit3
+        if(param == 'debug'):
+            print(j,' bits:',bits)
 
         # The number is reconstructed from three parts: sign, exponent, and mantissa
         # Strip transmission & unknown digits
@@ -108,7 +110,7 @@ def pseudostring2array(pbstring):
             #print(p,b,power2,value,mantissa)
         number = sign * mantissa * decimals
         if(param == 'debug'):
-            print(number,' <-- ',sign,decimals,mantissa)
+            print(j,' Value: ',number,' <-- ',sign,decimals,mantissa)
         values.append(number)
     return values
 
@@ -132,13 +134,16 @@ else:
 # Open CSV file for writing
 fout = open('pbout_py.csv','w')
 
+# MAIN
 i = 0
 for lrgs_string in dcp_strings:
     if(len(lrgs_string) > 18):
         i += 1
-        # Parse the DCP header
+        # Parse GOES metadata and separate out Message
         goes_array = DCPstring2array(lrgs_string)
         print("GOES Array:",goes_array)
+
+        # Parse Message, i.e. the data content of transmission
         message = goes_array["message"].strip()
         psl = len(message)
         psmod = psl%3
@@ -153,7 +158,7 @@ for lrgs_string in dcp_strings:
             print('Pseudobinary:',message)
         print('message length:',len(message))
         print(row,file=fout)
-
+        print(row)
 fout.close()
 print('DONE!')
         

@@ -27,111 +27,10 @@ parsed and separated from the message before any conversion can take place.
 NOTE: the data does not have timestamps.  It must be interpreted from the medata 
 timestamp. 
 */
+//require('./goes');
+import * as goes from './goes';
 
-
-function DCPstring2array(lrgs) {
-	dcp_parts = [];
-	/*
-	[dcp_address 8][timestamp 11][fail 1][signal_strength 2][freq_offset 2][modulation]
-	[0 - 7]			[8 - 18]	 [19]	 [20,21]			[22,23]			[24]
-	 
-	[data_quality][chan][spacecraft][ds_source][message_length][message]
-	[25]		  [26,27,28] [29]	[30,31]		[32,33,34,35,36] [37+] 
-	*/
-	// DCP address - 8 digit hex
-	dcp_parts["dcp_address"] = lrgs.substring(0,8);
-	// 11 digit timestamp YYDDDHHMMSS  Note the julian day
-	dcp_parts["timestamp"] = lrgs.substring(8,19);
-	// 1 digit failure code (G/?)
-	dcp_parts["fail"] = lrgs.substring(19,20);
-	// 2 digit signal strength (32-57)
-	dcp_parts["signal_strength"] = lrgs.substring(20,22);
-	// 2 digit frequency offset (+-0-9)
-	dcp_parts["freq_offset"] = lrgs.substring(22,24);
-	// 1 digit modulation index (N/L/H)
-	dcp_parts["mod"] = lrgs.substring(24,25);
-	// 1 digit data quality (N/F/P)
-	dcp_parts["data_quality"] = lrgs.substring(25,26);
-	// 3 digit GOES receive channel
-	dcp_parts["chan"] = lrgs.substring(26,29);
-	// 1 digit GOES spacecraft indicatory (E/W)
-	dcp_parts["spacecraft"] = lrgs.substring(29,30);
-	// 2 digit data source code (XW = sioux falls, west)
-	dcp_parts["ds_source"] = lrgs.substring(30,32);
-	// 5 digit message data length
-	dcp_parts["message_length"] = lrgs.substring(32,37);
-	// MESSAGE BODY 6 bits of every byte used. 
-	dcp_parts["message"] = lrgs.substring(37,lrgs.length+1);
-	return dcp_parts;
-} 
-
-function pseudostring2array(pbstring) {
-	var values = [];  // Array of the values decoded from the pseudobinary string
-	for (var i = 0; i < pbstring.length; i+=3) {
-		var char1 = pbstring.charCodeAt(i).toString(2);
-		var char2 = pbstring.charCodeAt(i+1).toString(2);
-		var char3 = pbstring.charCodeAt(i+2).toString(2);
-
-		var bit1 = char1.substring(char1.length -6,char1.length);
-		var bit2 = char2.substring(char2.length -6,char2.length);
-		var bit3 = char3.substring(char3.length -6,char3.length);
-		
-		if(param == 'debug') {
-			console.log(i+' char1('+pbstring.substring(i,i+1)+')-->'+char1+"-->"+bit1
-			+', char2('+pbstring.substring(i+1,i+2)+')-->'+char2+"-->"+bit2
-			+', char3('+pbstring.substring(i+2,i+3)+')-->'+char3+"-->"+bit3);	
-		}		
-		var bits = bit1+bit2+bit3;
-		//console.log(i+' '+bits+' '+bits.length);
-
-		//bits ='012345678901234567'; // test srting
-		var bitsign = Number(bits.substring(2,3));
-		var bitdecimal1 = Number(bits.substring(3,4));
-		var bitdecimal2 = Number(bits.substring(4,5));
-		var bitmantissa = bits.substring(5,18);
-		//console.log(i+' sign: '+bitsign+', decimals: '+bitdecimal1+', '+bitdecimal2+', mant: '+bitmantissa);
-
-		// Convert from bits to meaningful number parts
-		var sign = Math.pow(-1,bitsign);
-		var decimal = Math.pow(10, -1 * (2*bitdecimal1 + bitdecimal2));
-		var mantissa = 0;
-		//console.log(i+' sign: '+bitsign+'-->'+sign+', decimals: '+(2*bitdecimal1 + bitdecimal2)+' --> '+decimal);
-		for (var j = 0; j < bitmantissa.length; j++) {
-			var k = 12 - j;
-			var power = Math.pow(2,k);
-			var mbit = Number(bitmantissa.substring(j,j+1));
-			var mval = mbit * power;
-			mantissa += mval;
-			//console.log(i+' mantissa: '+mantissa+', mbit: '+mbit+', power: '+power);
-		}
-		var value = sign * decimal * mantissa;
-		values.push(value);
-		if(param == 'debug') {
-			console.log(i+' Value: '+value+', sign: '+sign+', decmal: '+decimal+', mantissa: '+mantissa);
-		}
-	}
-	return values;
-}
-
-function values2data(goes_array,value_set,column_num) {
-	var data_rows = [];
-	// Timestamp - this is the time of transmission, so it is the last timestamp
-	// convert to ISO standard time UTC, provide offset. 
-
-	// Separate into data rows.  For hourly transmissions this should be 6 rows. 
-	// Do I assume hourly?  Calculate?  Input as argument? Default hourly.
-
-	// Row Timestamps - back calculate the time for each row, assuming interval based 
-	// on transmission frequency and the number of rows.  Default 10 min.
-
-	// Nan Values:   convert -8190 values to NaNs.  
-	
-	return data_rows;
-}
-
-//
 // Test the Pseudo-bindary conversion function
-//
 // Argv: Accept an argument
 if (process.argv.length <= 2) {
     console.log("Usage: " + __filename + " SOME_PARAM");
@@ -158,18 +57,18 @@ else { 	// Argv: load file from argument
 for (var lrgs_string of lrgs_strings) {
 	if(lrgs_string.length > 18) {
 		// Parse GOES metadata and separate out Message
-		var goes_array = DCPstring2array(lrgs_string);
+		var goes_array = goes.DCPstring2array(lrgs_string);
 		console.log("GOES Array:");
 		console.log(goes_array);
 		
 		// Parse Message, i.e. the data content of transmission
 		var message = goes_array["message"];
 		console.log("message length: "+message.length);
-		var value_set = pseudostring2array(message);
+		var value_set = goes.pseudostring2array(message);
 		//console.log(value_set.toString());
 		
 		// Data Row Constructor - separate rows of data and add timestamps.
-		var data_set = values2data(goes_array,value_set,column_num);
+		var data_set = goes.values2data(goes_array,value_set,column_num);
 		console.log(data_set.toString());
 
 		// Export Message content to CSV file
