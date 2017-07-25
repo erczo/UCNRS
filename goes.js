@@ -7,7 +7,7 @@ from remote locations.  To keep transmissions to a minimum, they use pseudobinar
 Pseudobinary is ASCII characters that can be decoded into normal numbers. 
 */
 
-export default function DCPstring2array (lrgs,booTest=false,booDebug=false) {
+function DCPstring2array (lrgs,booTest=false,booDebug=false) {
 	/*
 	DCP METADATA
 	Each transmission is prefixed with a DCP transmission metadata string.  These
@@ -16,7 +16,7 @@ export default function DCPstring2array (lrgs,booTest=false,booDebug=false) {
 	NOTE: the data does not have timestamps.  It must be interpreted from the medata 
 	timestamp. 
 	*/
-	dcp_parts = [];
+	var dcp_parts = {};
 	/*
 	[dcp_address 8][timestamp 11][fail 1][signal_strength 2][freq_offset 2][modulation]
 	[0 - 7]			[8 - 18]	 [19]	 [20,21]			[22,23]			[24]
@@ -52,7 +52,7 @@ export default function DCPstring2array (lrgs,booTest=false,booDebug=false) {
 	return dcp_parts;
 }
 
-export default function char2bin (inchar,booTest=false,booDebug=false) {
+function char2bin (inchar,booTest=false,booDebug=false) {
 	/* 
 	Pseudobinary requires conversion from ASCII character
 	to binary bits, but only the last 6 digits of the binary.
@@ -69,7 +69,7 @@ export default function char2bin (inchar,booTest=false,booDebug=false) {
 	return bit;
 }
 
-export default function pseudostring2array (pbstring,booTest=false,booDebug=false) {
+function pseudostring2array (pbstring,booTest=false,booDebug=false) {
 	/*
 	PSEUDOBINARY
 	The number is reconstructed from three characters.  Each character is
@@ -142,7 +142,7 @@ export default function pseudostring2array (pbstring,booTest=false,booDebug=fals
 	return values;
 }
 
-export default function values2data (goes_array,value_set,column_num,booTest=false,booDebug=false) {
+function values2data (goes_array,value_set,column_num,booTest=false,booDebug=false) {
 	var data_rows = [];
 	// Timestamp - this is the time of transmission, so it is the last timestamp
 	// convert to ISO standard time UTC, provide offset. 
@@ -178,3 +178,7 @@ export default function values2data (goes_array,value_set,column_num,booTest=fal
 	return data_rows;
 }
 
+exports.DCPstring2array = DCPstring2array;
+exports.char2bin = char2bin;
+exports.pseudostring2array = pseudostring2array;
+exports.values2data = values2data;
