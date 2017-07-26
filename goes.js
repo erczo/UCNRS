@@ -108,7 +108,9 @@ function pseudostring2array (pbstring,booTest=false,booDebug=false) {
 		var bit2 = char2bin(pbstring.substring(i+1,i+2));
 		var bit3 = char2bin(pbstring.substring(i+2,i+3));
 		var bits = bit1+bit2+bit3;
-		console.log(i+'. '+bits+'('+bits.length+')');
+		if(booDebug == true) {
+			console.log(i+'. '+bits+'('+bits.length+')');
+		}
 
 		//bits ='012345678901234567'; // test srting
 		var bitsign = Number(bits.substring(2,3));

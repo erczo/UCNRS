@@ -27,8 +27,8 @@ parsed and separated from the message before any conversion can take place.
 NOTE: the data does not have timestamps.  It must be interpreted from the medata 
 timestamp. 
 */
-//require('./goes');
-import * as goes from './goes';
+const goes = require('./goes');
+//import * as goes from './goes';
 
 // Test the Pseudo-bindary conversion function
 // Argv: Accept an argument
