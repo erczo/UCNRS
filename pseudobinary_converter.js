@@ -42,12 +42,16 @@ console.log(__filename+' param: ' + param);
 // Argv: command line argument can be test, debug, or a file name
 var lrgs_strings = [];
 var column_num = 58;
-if(param == 'test' || param == 'debug') {
-	column_num = 58;
 	var test_string = 'BEC0035C17197002104G49-0NN301WXW01046 B^h@YJF@[F@\F@[F@@F@qF@rF@qF@@F@@F@@F@@F@@F@@F@@DjqDj]DjgEMTEIiEKt@OqF@@F@@I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~DT^DT]DT]DlHD{XGmXChvB^h@Y@F@\F@]F@\F@@F@sF@uF@rF@@F@@F@@F@@F@@F@@F@@DjgDjLDjWEOUEKZEME@OqF@@F@@I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~DT_DT]DT_Dl@D{XGmXChvB^h@XNF@]F@^F@]F@@F@wF@xF@uF@@F@@F@@F@@F@@F@@F@@DjRDipDj@ERPEN_EPd@OrF@@F@@I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~DT`DT_DT`DkzD{XGmXChvB^h@XDF@]F@^F@\F@AF@vF@xF@tF@@F@@F@@F@@F@@F@@F@@Di{DifDioETpEPSERy@OrF@@F@@I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~DT`DT_DT`DkvD{XGmXChvB^h@WzF@\F@]F@\F@@F@tF@uF@rF@@F@@F@@F@@F@@F@@F@@DjHDimDizEUgEQ|ESn@OrF@@F@@I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~DT_DSGDTZDk|D{XGmXChvB^h@WpF@^F@^F@]F@@F@xF@xF@uF@@F@@F@@F@@F@@F@@F@@DjgDi{DjUEVSER[ETP@OrF@@F@@I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~I~DT_DTMDT^DlED{XGmXChv ';
+if(param == 'test' ) {
 	lrgs_strings.push(test_string);
-	console.log(param);
+	booTest = true;
 } 
+else if ( param == 'debug' ) {
+	lrgs_strings.push(test_string);
+	booDebug = true;
+	booTest = true;
+}
 else { 	// Argv: load file from argument
 	var fs = require('fs')
 	lrgs_strings = fs.readFileSync(param).toString().split("\n");
@@ -57,19 +61,19 @@ else { 	// Argv: load file from argument
 for (var lrgs_string of lrgs_strings) {
 	if(lrgs_string.length > 18) {
 		// Parse GOES metadata and separate out Message
-		var goes_array = goes.DCPstring2array(lrgs_string);
+		var goes_array = goes.DCPstring2array(lrgs_string,booDebug);
 		console.log("GOES Array:");
 		console.log(goes_array);
 		
 		// Parse Message, i.e. the data content of transmission
 		var message = goes_array["message"];
 		console.log("message length: "+message.length);
-		var value_set = goes.pseudostring2array(message);
+		var value_set = goes.pseudostring2array(message,booDebug);
 		//console.log(value_set.toString());
 		
 		// Data Row Constructor - separate rows of data and add timestamps.
-		var data_set = goes.values2data(goes_array,value_set,column_num);
-		console.log(data_set.toString());
+		var data_set = goes.values2data(goes_array,value_set,column_num,booDebug);
+		//console.log(data_set.toString());
 
 		// Export Message content to CSV file
 		require("fs").appendFile( 

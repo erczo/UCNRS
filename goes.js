@@ -52,7 +52,7 @@ function DCPstring2array (lrgs,booTest=false,booDebug=false) {
 	return dcp_parts;
 }
 
-function char2bin (inchar,booTest=false,booDebug=false) {
+function char2bin (inchar) {
 	/* 
 	Pseudobinary requires conversion from ASCII character
 	to binary bits, but only the last 6 digits of the binary.
@@ -63,9 +63,7 @@ function char2bin (inchar,booTest=false,booDebug=false) {
 	var fb_len = fullbit.length;
 	var bit = fullbit.substring(fb_len-6,fb_len);
 	var b_len = bit.length;
-	if(booDebug == true) {
-		console.log(inchar+'-->'+unint+'-->'+fullbit+'('+fb_len+')-->'+bit+'('+b_len+')');
-	}
+	//console.log(inchar+'-->'+unint+'-->'+fullbit+'('+fb_len+')-->'+bit+'('+b_len+')');
 	return bit;
 }
 
@@ -144,7 +142,7 @@ function pseudostring2array (pbstring,booTest=false,booDebug=false) {
 	return values;
 }
 
-function values2data (goes_array,value_set,column_num,booTest=false,booDebug=false) {
+function values2data (goes_array,value_set,trans_interval,trans_delay,logger_interval,logger_columns,booTest=false,booDebug=false) {
 	var data_rows = [];
 	// Timestamp - this is the time of transmission, so it is the last timestamp
 	// convert to ISO standard time UTC, provide offset. 
@@ -160,14 +158,19 @@ function values2data (goes_array,value_set,column_num,booTest=false,booDebug=fal
 
 	// Separate into data rows.  For hourly transmissions this should be 6 rows. 
 	// Do I assume hourly?  Calculate?  Input as argument? Default hourly.
-	row = []
+	row = [];
+	i = 0;
+	max_fields = logger_columns - 2;
 	for(var value of value_set) {
-		row.push(value);
-		if(value == 671) {
-			data_rows.push(row)
-			console.log("Rows: "+data_rows.length);
-			row = [];		
+		if(i <= max_fields) {
+			row.push(value);	
 		}
+		else {
+			data_rows.push(row);
+			i = 0;
+			row = [];
+			console.log("Rows: "+data_rows.length+', fields in row: '+row.length);
+		}		
 	}
 	console.log("End of values in value_set. Now have "+row.length+" rows.");
 
