@@ -55,7 +55,7 @@ def file_firstdate(filepath,sep=',',ts_pos=0):
     return ts,i  
 
 #path = '/Users/collin/Desktop/SensorDB_Duplicates/'
-path = 'D:/sensor/UCNRS_Dups/'
+path = 'D:/sensor/backup2017-08-10_dri_duplicates/'
 inpath = path+'source/'
 outpath = path+'new/'
 
@@ -113,8 +113,9 @@ with open(path+'file_stats.csv','w') as freport:
                         i += 1
                         
                 # Count Rows
-                date_interval = date_end - date_start
-                logger_interval = dt.timedelta(minutes=10)
+                dt_date_interval = date_end - date_start
+                date_interval = dt_date_interval.days * (24 * 60) + ( dt_date_interval.seconds / 60 ) # convert datetime to float
+                logger_interval = 10.0 # minutes in float form
                 ideal_row_count = (date_interval / logger_interval) + header_length
                 diff_iva = ideal_row_count - actual_row_count
     
