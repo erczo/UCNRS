@@ -80,6 +80,21 @@ def m(*message):
     m = ' '.join(mess)
     return m
 
+def file_lastdate(filepath,sep=',',ts_pos=0):
+    with open(filepath,'r') as f:
+        ts = 'ERROR'
+        filelines = f.readlines()
+        linenum = len(filelines)
+        lastline = filelines[linenum-1]
+        values = lastline.split(sep)
+        str_time = values[ts_pos].strip().replace('"','')
+        try:
+            #ts = dt.datetime.strptime(str_time,"%Y-%m-%d %H:%M:%S")
+            ts = dt.datetime.strptime(date+' '+time,"%Y/%m/%d %H:%M")
+        except:
+            log.info("ERROR: "+file+" Doesn't have timestamp at position "+str(ts_pos)+": "+str_time)                         
+        return ts
+
 # Helper function to create a unique filename and avoid clobbering existing files
 def unique_file(f):
     i = 0
@@ -318,7 +333,7 @@ for station_name,station,fstation,station_first_time in station_list:
     str_station,datdump = fstation.split('.dat')
     fpath = path+fstation
     frawpath = rawpath+str_station+'_raw.txt'
-    ftpath = timepath+str_station+'.time'         # The .time file holds the last timestmap recorded
+    #ftpath = timepath+str_station+'.time'         # The .time file holds the last timestmap recorded
     fheadpath = headpath+str_station+'.header' # The .header file just holds the header 
     write_mode = 'a' # append to existing file
         
@@ -329,6 +344,10 @@ for station_name,station,fstation,station_first_time in station_list:
     ###########
     # TIME  
     # booFirstRun set up file header and download all data
+    time_start_o = dt.datetime.now()
+    time_start = dt.datetime.now()
+    time_end = dt.datetime.now()
+    
     if(booFirstRun == True):
         if(station =='hipk' or station == 'whpt'):
             time_start = dt.datetime.now() - dt.timedelta(days=29)  # For 30 day locked stations
@@ -347,21 +366,22 @@ for station_name,station,fstation,station_first_time in station_list:
         time_start_o = time_start
     # Normal operation - daily download
     else: #booFirstRun == False
-        if(os.path.exists(ftpath) == True):
+        if(os.path.exists(fpath) == True):
             try:
-                ft = open(ftpath,'r')   # open .time file and get last datetime pulled
-                dtstring = (ft.read()).strip()
-                time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
+                #ft = open(ftpath,'r')   # open .time file and get last datetime pulled
+                #dtstring = (ft.read()).strip()
+                #time_start_o = dt.datetime.strptime(dtstring,"%Y-%m-%d %H:%M:%S") 
+                time_start_o = file_lastdate(fpath)
                 time_start = time_start_o - dt.timedelta(days=1) # add a day for safety
                 time_end = dt.datetime.now()
-                ft.close()
+                #ft.close()
             except:
-                log.error(m("Time File doesn't have valid dates. Skipping...",ftpath))
+                log.error(m("No Timestamp found: Skipping...",fpath))
                 continue
         else:
-            log.error("No Time File found: "+ftpath+" Please perform a First Run. Skipping...")
+            log.error("Missing dat file: "+fpath+" Please perform a First Run. Skipping...")
             continue
-
+    
     ###########
     # Webscrape DRI - pull headers and data
     received_data = pull_dri(station,time_start,time_end)
@@ -424,6 +444,8 @@ for station_name,station,fstation,station_first_time in station_list:
                     if(ts == ts_previous and booFoundTime == True):
                         log.error(m('Redundant timestamp:',str(ts),'==',str(ts_previous),'Row:',row))
                         pass
+                    elif(ts > time_start_o):
+                        log.info(m('Timestamp prior to start_time. skipping... row:',row))
                     else:
                         fout.write(newrow)
                     booFoundTime = True
